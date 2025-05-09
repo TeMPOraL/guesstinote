@@ -41,7 +41,21 @@ class Cell {
         this.errorState = null; // Clear previous errors
         const formula = this.rawFormula.trim();
 
-        // Try to parse as a constant number
+        if (this._parseAsConstant(formula)) return;
+        if (this._parseAsNormal(formula)) return;
+        if (this._parseAsPert(formula)) return;
+        if (this._parseAsDataArray(formula)) return;
+
+        // If none of the above, it's a complex formula (or an error)
+        // For now, we just mark it and don't calculate.
+        // TODO: Implement formula evaluation (e.g., CellA + CellB)
+        this.type = 'formula';
+        this.parameters = {}; // No specific parameters for a generic formula yet
+        this.errorState = 'error'; // Mark as error until formula evaluation is implemented
+        console.log(`Cell ${this.id} marked as complex formula (not yet supported): "${formula}"`);
+    }
+
+    _parseAsConstant(formula) {
         if (/^\s*[-+]?\d+(\.\d+)?\s*$/.test(formula)) {
             this.type = 'constant';
             this.value = parseFloat(formula);
@@ -49,12 +63,14 @@ class Cell {
             this.mean = this.value;
             this.samples = [this.value]; // Represent as a single sample for consistency
             this.ci = { lower: this.value, upper: this.value };
-            this.histogramData = Calculator.calculateStats(this.samples).histogramData; // Generate basic histogram
+            this.histogramData = Calculator.calculateStats(this.samples).histogramData;
             console.log(`Cell ${this.id} parsed as constant:`, this.value);
-            return;
+            return true;
         }
+        return false;
+    }
 
-        // Try to parse as "X to Y" (Normal distribution)
+    _parseAsNormal(formula) {
         const normalMatch = formula.match(/^\s*([-+]?\d+(\.\d+)?)\s*to\s*([-+]?\d+(\.\d+)?)\s*$/);
         if (normalMatch) {
             this.type = 'normal';
@@ -72,48 +88,55 @@ class Cell {
                 this.errorState = 'error';
                 console.error(`Error calculating normal distribution for ${this.id}:`, e);
             }
-            return;
+            return true;
         }
+        return false;
+    }
 
-        // Try to parse as PERT(min, likely, max, [lambda]) or PERT(min, max)
+    _parseAsPert(formula) {
         const pertMatch = formula.match(/^PERT\s*\(([^)]*)\)\s*$/i);
         if (pertMatch) {
             this.type = 'pert';
             const argsString = pertMatch[1];
             const args = argsString.split(',').map(arg => parseFloat(arg.trim()));
-            
+
             if (args.some(isNaN)) {
                 this.errorState = 'error';
                 console.error(`Cell ${this.id} PERT: Invalid arguments (not all numbers) "${argsString}"`);
-                return;
+                return true; // Matched PERT but failed to parse args
             }
 
             let min, likely, max, lambda = 4; // Default lambda
 
-            if (args.length === 2) { // PERT(min, max)
-                min = args[0];
-                max = args[1];
-                likely = (min + max) / 2;
-            } else if (args.length === 3) { // PERT(min, likely, max)
-                min = args[0];
-                likely = args[1];
-                max = args[2];
-            } else if (args.length === 4) { // PERT(min, likely, max, lambda)
-                min = args[0];
-                likely = args[1];
-                max = args[2];
-                lambda = args[3];
-            } else {
-                this.errorState = 'error';
-                console.error(`Cell ${this.id} PERT: Incorrect number of arguments (${args.length}) "${argsString}"`);
-                return;
+            switch (args.length) {
+                case 2: // PERT(min, max)
+                    min = args[0];
+                    max = args[1];
+                    likely = (min + max) / 2;
+                    break;
+                case 3: // PERT(min, likely, max)
+                    min = args[0];
+                    likely = args[1];
+                    max = args[2];
+                    break;
+                case 4: // PERT(min, likely, max, lambda)
+                    min = args[0];
+                    likely = args[1];
+                    max = args[2];
+                    lambda = args[3];
+                    break;
+                default:
+                    this.errorState = 'error';
+                    console.error(`Cell ${this.id} PERT: Incorrect number of arguments (${args.length}) "${argsString}"`);
+                    return true; // Matched PERT but failed due to arg count
             }
             
             if (!(min <= likely && likely <= max)) {
                  this.errorState = 'error';
                  console.error(`Cell ${this.id} PERT: Invalid parameters (min <= likely <= max not met). min=${min}, likely=${likely}, max=${max}`);
-                 return;
+                 return true; // Matched PERT but failed validation
             }
+
             if (min === max) { // If min and max are same, treat as constant
                  this.type = 'constant'; // Or a very narrow PERT
                  this.value = min;
@@ -123,9 +146,8 @@ class Cell {
                  this.ci = { lower: this.value, upper: this.value };
                  this.histogramData = Calculator.calculateStats(this.samples).histogramData;
                  console.log(`Cell ${this.id} PERT (min=max) parsed as constant:`, this.value);
-                 return;
+                 return true;
             }
-
 
             this.parameters = { min, likely, max, lambda };
             try {
@@ -139,10 +161,12 @@ class Cell {
                 this.errorState = 'error';
                 console.error(`Error calculating PERT distribution for ${this.id}:`, e);
             }
-            return;
+            return true;
         }
-        
-        // Try to parse as inline data array e.g., [1,2,3,4]
+        return false;
+    }
+    
+    _parseAsDataArray(formula) {
         const arrayMatch = formula.match(/^\s*\[\s*((?:[-+]?\d+(\.\d+)?\s*,\s*)*[-+]?\d+(\.\d+)?)\s*\]\s*$/);
         if (arrayMatch && arrayMatch[1]) {
             this.type = 'dataArray';
@@ -151,7 +175,7 @@ class Cell {
                 if (dataValues.some(isNaN)) {
                     this.errorState = 'error';
                     console.error(`Cell ${this.id} Data Array: Invalid numbers in array "${arrayMatch[1]}"`);
-                    return;
+                    return true; // Matched Data Array but failed to parse values
                 }
                 this.parameters = { data: dataValues };
                 this.samples = Calculator.processInlineDataArray(dataValues);
@@ -164,17 +188,9 @@ class Cell {
                  this.errorState = 'error';
                  console.error(`Error processing Data Array for ${this.id}:`, e);
             }
-            return;
+            return true;
         }
-
-
-        // If none of the above, it's a complex formula (or an error)
-        // For now, we just mark it and don't calculate.
-        // TODO: Implement formula evaluation (e.g., CellA + CellB)
-        this.type = 'formula';
-        this.parameters = {}; // No specific parameters for a generic formula yet
-        this.errorState = 'error'; // Mark as error until formula evaluation is implemented
-        console.log(`Cell ${this.id} marked as complex formula (not yet supported):`, formula);
+        return false;
     }
 }
 

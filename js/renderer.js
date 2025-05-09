@@ -34,15 +34,7 @@ const Renderer = {
             ciSpan.classList.add('ci');
             ciSpan.textContent = `(${cellData.ci.lower.toFixed(1)} to ${cellData.ci.upper.toFixed(1)})`;
             cellSpan.appendChild(ciSpan);
-
-            // Display the parsed formula instead of the histogram for now
-            const formulaSpan = document.createElement('span');
-            formulaSpan.classList.add('formula-display'); // Add a class for potential styling
-            formulaSpan.style.marginLeft = '5px'; // Basic styling
-            formulaSpan.style.fontStyle = 'italic';
-            formulaSpan.style.color = '#777';
-            formulaSpan.textContent = `(Formula: ${cellData.rawFormula})`; // Changed cellData.formula to cellData.rawFormula
-            cellSpan.appendChild(formulaSpan);
+            this._appendFormulaDisplay(cellSpan, cellData.rawFormula);
 
             // const histogramSpan = document.createElement('span');
             // histogramSpan.classList.add('histogram');
@@ -54,15 +46,7 @@ const Renderer = {
             valueSpan.classList.add('value');
             valueSpan.textContent = `${cellData.value}`; // Removed unit
             cellSpan.appendChild(valueSpan);
-
-            // Also display formula for constants if needed for clarity, or just for non-constants
-            const formulaSpan = document.createElement('span');
-            formulaSpan.classList.add('formula-display');
-            formulaSpan.style.marginLeft = '5px';
-            formulaSpan.style.fontStyle = 'italic';
-            formulaSpan.style.color = '#777';
-            formulaSpan.textContent = `(Formula: ${cellData.rawFormula})`; // Changed cellData.formula to cellData.rawFormula
-            cellSpan.appendChild(formulaSpan);
+            this._appendFormulaDisplay(cellSpan, cellData.rawFormula);
 
         } else {
             const statusSpan = document.createElement('span');
@@ -71,6 +55,16 @@ const Renderer = {
         }
         
         return cellSpan; // Return the DOM element
+    },
+
+    _appendFormulaDisplay: function(parentSpan, rawFormula) {
+        const formulaSpan = document.createElement('span');
+        formulaSpan.classList.add('formula-display'); // Add a class for potential styling
+        formulaSpan.style.marginLeft = '5px'; // Basic styling
+        formulaSpan.style.fontStyle = 'italic';
+        formulaSpan.style.color = '#777';
+        formulaSpan.textContent = `(Formula: ${rawFormula})`;
+        parentSpan.appendChild(formulaSpan);
     }
     // renderAllCellsInEditor is removed as its approach is no longer used.
     // A new function for initial full-document rendering (DOM-based) will be needed later.
