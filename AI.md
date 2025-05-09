@@ -11,6 +11,3 @@ please add it to this file (or modify existing guideline). The format of the gui
 them by categories; otherwise, whatever works best for you is best. You may store information about the project you want to retain long-term,
 as well as any instructions for yourself to make your work more efficient and correct.
 
-## Project design
-
-TBD.
