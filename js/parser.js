@@ -22,10 +22,10 @@ const Parser = {
     // \[(?:([^\]|]+)\|)?([^\]]+)\]      -> Captures optional ID, required Name/ID_Name part: [ID|Name] or [Name]
     //                                     Group 1: ID (optional)
     //                                     Group 2: Name (or NameAsIDAndDisplayName)
-    // \((.*?)\)                       -> Captures Formula part: (Formula) - non-greedy
+    // \((.*)\)                        -> Captures Formula part: (Formula) - greedy
     //                                     Group 3: Formula
     // Unit part is now removed.
-    cellDefinitionRegex: /\[(?:([^\]|]+)\|)?([^\]]+)\]\((.*?)\)/g,
+    cellDefinitionRegex: /\[(?:([^\]|]+)\|)?([^\]]+)\]\((.*)\)/g,
 
     // Regex for `[#ID|DisplayName]` or `[#ID]`
     // \[\#(?:([^\]|]+)\|)?([^\]]+)\]      -> Captures reference: [#ID|Name] or [#ID]
