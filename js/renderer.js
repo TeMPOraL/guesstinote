@@ -30,7 +30,7 @@ const Renderer = {
         } else if (cellData.errorState === 'dependent-error') { // This case might need review if errorState is now always a string or null
             cellSpan.classList.add('cell-dependent-error');
             nameSpan.textContent += ' (Dep. Error)'; // Keep this for now, though direct error messages are prioritized
-        } else if (cellData.mean !== null && cellData.ci && cellData.ci.lower !== null) {
+        } else if (cellData.mean !== null && cellData.ci && typeof cellData.ci.lower === 'number' && typeof cellData.ci.upper === 'number') {
             const valueSpan = document.createElement('span');
             valueSpan.classList.add('value');
             valueSpan.textContent = `${cellData.mean.toFixed(1)}`; // Removed unit

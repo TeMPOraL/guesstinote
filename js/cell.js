@@ -71,68 +71,15 @@ class Cell {
             // We can, however, do a very simple interpretation for immediate feedback for *some* simple cases
             // if the AST root is a known type that doesn't require further evaluation (like a number literal).
             // This is a temporary measure.
-            if (this.ast.type === 'NumberLiteral') {
-                this.type = 'constant';
-                this.value = this.ast.value;
-                this.mean = this.value;
-                this.samples = [this.value];
-                this.ci = { lower: this.value, upper: this.value };
-                this.histogramData = Calculator.calculateStats(this.samples).histogramData;
-            } else if (this.ast.type === 'RangeExpression') {
-                // This still requires evaluating the left and right nodes if they are not NumberLiterals.
-                // For now, we'll assume they are for this temporary feedback.
-                if (this.ast.left.type === 'NumberLiteral' && this.ast.right.type === 'NumberLiteral') {
-                    this.type = 'normal'; // Assuming "X to Y" implies normal
-                    const val1 = this.ast.left.value;
-                    const val2 = this.ast.right.value;
-                    this.parameters = { lowerCI: Math.min(val1, val2), upperCI: Math.max(val1, val2) };
-                    try {
-                        this.samples = Calculator.generateNormalSamplesFromCI(this.parameters.lowerCI, this.parameters.upperCI);
-                        const stats = Calculator.calculateStats(this.samples);
-                        this.mean = stats.mean;
-                        this.ci = stats.ci;
-                        this.histogramData = stats.histogramData;
-                    } catch (e) { this.errorState = `Normal dist calc error: ${e.message}`; }
-                } else {
-                     this.errorState = "Range expression arguments must be numbers (for now).";
-                }
-            } else if (this.ast.type === 'FunctionCall') {
-                // Similar temporary handling for PERT and array if args are simple numbers
-                if (this.ast.name.toLowerCase() === 'pert' && this.ast.args.every(arg => arg.type === 'NumberLiteral')) {
-                    this.type = 'pert';
-                    const args = this.ast.args.map(arg => arg.value);
-                    // ... (PERT logic from _handlePert, simplified for direct values) ...
-                    // This part is getting repetitive with the old _handlePert, highlighting
-                    // the need for the AST evaluator to handle this properly.
-                    // For brevity, I'll skip reimplementing full PERT logic here for this temporary step.
-                    // It will fall through to "Calculating..." or show formula.
-                    // We'll just set the type.
-                    // For now, to avoid errors and show something, let's just mark it as needing calculation
-                    // if we don't fully implement the temporary PERT logic here.
-                    // This means PERT cells will show "Calculating..." until the evaluator.
-                    if (args.length >= 2 && args.length <= 4 && !args.some(isNaN)) {
-                        // Basic validation passed, but not calculating here.
-                        // The renderer will show "Calculating..." if mean is null.
-                    } else {
-                        this.errorState = "PERT arguments invalid or not all numbers.";
-                    }
-
-
-                } else if (this.ast.name.toLowerCase() === 'array' && this.ast.args.every(arg => arg.type === 'NumberLiteral')) {
-                    this.type = 'dataArray';
-                    const dataValues = this.ast.args.map(arg => arg.value);
-                    this.parameters = { data: dataValues };
-                    try {
-                        this.samples = Calculator.processInlineDataArray(dataValues);
-                        const stats = Calculator.calculateStats(this.samples);
-                        this.mean = stats.mean;
-                        this.ci = stats.ci;
-                        this.histogramData = stats.histogramData;
-                    } catch (e) { this.errorState = `Array processing error: ${e.message}`; }
-                }
-                // Other function calls or complex args will not be evaluated here.
+            const astHandler = Cell.AST_HANDLERS[this.ast.type];
+            if (astHandler) {
+                astHandler(this, this.ast); // Pass cell instance and AST node
+            } else {
+                // For AST types without a direct temporary handler (e.g., BinaryOp, CellIdentifier),
+                // they will remain in a state where mean, ci, etc., are null.
+                // The renderer will show "Calculating..."
+                console.log(`Cell ${this.id}: No temporary AST handler for type "${this.ast.type}". Awaiting full evaluator.`);
             }
-            // Complex formulas (BinaryOp, CellIdentifier) will not be evaluated here.
 
         } catch (e) {
             this.errorState = e.message;
@@ -144,6 +91,91 @@ class Cell {
     // are now effectively replaced by the FormulaParser and subsequent AST evaluation (to be built).
     // We can remove these private methods from the Cell class.
 }
+
+// Static map for temporary AST handlers
+Cell.AST_HANDLERS = {
+    'NumberLiteral': function(cell, astNode) {
+        cell.type = 'constant';
+        cell.value = astNode.value;
+        cell.mean = cell.value;
+        cell.samples = [cell.value];
+        cell.ci = { lower: cell.value, upper: cell.value };
+        cell.histogramData = Calculator.calculateStats(cell.samples).histogramData;
+    },
+    'RangeExpression': function(cell, astNode) {
+        // This still requires evaluating the left and right nodes if they are not NumberLiterals.
+        // For now, we'll assume they are for this temporary feedback.
+        if (astNode.left.type === 'NumberLiteral' && astNode.right.type === 'NumberLiteral') {
+            cell.type = 'normal'; // Assuming "X to Y" implies normal
+            const val1 = astNode.left.value;
+            const val2 = astNode.right.value;
+            cell.parameters = { lowerCI: Math.min(val1, val2), upperCI: Math.max(val1, val2) };
+            try {
+                cell.samples = Calculator.generateNormalSamplesFromCI(cell.parameters.lowerCI, cell.parameters.upperCI);
+                const stats = Calculator.calculateStats(cell.samples);
+                cell.mean = stats.mean;
+                cell.ci = stats.ci;
+                cell.histogramData = stats.histogramData;
+            } catch (e) { cell.errorState = `Normal dist calc error: ${e.message}`; }
+        } else {
+             cell.errorState = "Range expression arguments must be numbers (for now).";
+        }
+    },
+    'FunctionCall': function(cell, astNode) {
+        const functionName = astNode.name.toLowerCase();
+        const allArgsAreNumbers = astNode.args.every(arg => arg.type === 'NumberLiteral');
+
+        if (!allArgsAreNumbers) {
+            cell.errorState = `Function '${astNode.name}' arguments must all be numbers (for now).`;
+            return;
+        }
+        const argValues = astNode.args.map(arg => arg.value);
+
+        if (functionName === 'pert') {
+            cell.type = 'pert';
+            let min, likely, max, lambda = 4;
+            if (argValues.length === 2) {
+                min = argValues[0]; max = argValues[1]; likely = (min + max) / 2;
+            } else if (argValues.length === 3) {
+                min = argValues[0]; likely = argValues[1]; max = argValues[2];
+            } else if (argValues.length === 4) {
+                min = argValues[0]; likely = argValues[1]; max = argValues[2]; lambda = argValues[3];
+            } else {
+                cell.errorState = `PERT: Incorrect number of arguments (${argValues.length}).`;
+                return;
+            }
+            if (!(min <= likely && likely <= max)) {
+                cell.errorState = `PERT: Invalid parameters (min <= likely <= max not met).`;
+                return;
+            }
+            if (min === max) { // Treat as constant
+                Cell.AST_HANDLERS.NumberLiteral(cell, { type: 'NumberLiteral', value: min }); // Reuse constant handler
+                return;
+            }
+            cell.parameters = { min, likely, max, lambda };
+            try {
+                cell.samples = Calculator.generatePertSamples(min, likely, max, lambda);
+                const stats = Calculator.calculateStats(cell.samples);
+                cell.mean = stats.mean;
+                cell.ci = stats.ci;
+                cell.histogramData = stats.histogramData;
+            } catch (e) { cell.errorState = `PERT calc error: ${e.message}`; }
+
+        } else if (functionName === 'array') {
+            cell.type = 'dataArray';
+            cell.parameters = { data: argValues };
+            try {
+                cell.samples = Calculator.processInlineDataArray(argValues);
+                const stats = Calculator.calculateStats(cell.samples);
+                cell.mean = stats.mean;
+                cell.ci = stats.ci;
+                cell.histogramData = stats.histogramData;
+            } catch (e) { cell.errorState = `Array processing error: ${e.message}`; }
+        } else {
+            cell.errorState = `Unknown function for temporary evaluation: '${astNode.name}'.`;
+        }
+    }
+};
 
 window.Cell = Cell; // Make Cell class globally available for now
 console.log('cell.js loaded with Cell class');
