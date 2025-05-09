@@ -193,7 +193,7 @@ class Cell {
         // The true returns above indicate that the PERT structure was handled (even if it resulted in an error).
         // Thus, this line is unreachable if all paths correctly return true.
         // return false; // Removed dead code.
-    }
+    // EXTRA BRACE REMOVED HERE
 
     _handleArray(argumentsString) {
         this.type = 'dataArray'; // Keep type as 'dataArray' for consistency with Calculator
