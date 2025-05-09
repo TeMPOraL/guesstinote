@@ -35,16 +35,35 @@ const Renderer = {
             ciSpan.textContent = `(${cellData.ci.lower.toFixed(1)} to ${cellData.ci.upper.toFixed(1)})`;
             cellSpan.appendChild(ciSpan);
 
-            const histogramSpan = document.createElement('span');
-            histogramSpan.classList.add('histogram');
-            histogramSpan.title = (cellData.histogramData || []).join(', ');
-            // Actual histogram drawing would go here if not using background color placeholder
-            cellSpan.appendChild(histogramSpan);
+            // Display the parsed formula instead of the histogram for now
+            const formulaSpan = document.createElement('span');
+            formulaSpan.classList.add('formula-display'); // Add a class for potential styling
+            formulaSpan.style.marginLeft = '5px'; // Basic styling
+            formulaSpan.style.fontStyle = 'italic';
+            formulaSpan.style.color = '#777';
+            formulaSpan.textContent = `(Formula: ${cellData.formula})`;
+            cellSpan.appendChild(formulaSpan);
+
+            // const histogramSpan = document.createElement('span');
+            // histogramSpan.classList.add('histogram');
+            // histogramSpan.title = (cellData.histogramData || []).join(', ');
+            // // Actual histogram drawing would go here if not using background color placeholder
+            // cellSpan.appendChild(histogramSpan);
         } else if (typeof cellData.value === 'number') { // Constant
             const valueSpan = document.createElement('span');
             valueSpan.classList.add('value');
             valueSpan.textContent = `${cellData.value}`; // Removed unit
             cellSpan.appendChild(valueSpan);
+
+            // Also display formula for constants if needed for clarity, or just for non-constants
+            const formulaSpan = document.createElement('span');
+            formulaSpan.classList.add('formula-display');
+            formulaSpan.style.marginLeft = '5px';
+            formulaSpan.style.fontStyle = 'italic';
+            formulaSpan.style.color = '#777';
+            formulaSpan.textContent = `(Formula: ${cellData.formula})`;
+            cellSpan.appendChild(formulaSpan);
+
         } else {
             const statusSpan = document.createElement('span');
             statusSpan.textContent = ' (Calculating...)';
