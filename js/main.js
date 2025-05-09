@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Expose some functions globally if needed for modules, or use ES6 modules if preferred later.
     // For now, modules are expected to be globals due to simple script includes.
+    // Define Guesstinote object before init() so its methods are available during initialization.
     window.Guesstinote = {
         getEditorContent: () => editor.innerHTML,
         setEditorContent: (html) => { editor.innerHTML = html; },

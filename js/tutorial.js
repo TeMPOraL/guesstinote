@@ -1,6 +1,6 @@
 // Contains the content for the initial tutorial document (IS1)
 
-const Tutorial = {
+window.Tutorial = { // Explicitly attach to window
     getName: function() {
         return "Guesstinote Tutorial";
     },
