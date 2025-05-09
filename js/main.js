@@ -58,15 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // or when settings like global samples change.
         console.log('Content change detected. Re-parsing and rendering.');
         
-        const rawContent = editor.innerHTML; // Or .innerText if we prefer plain text parsing
-        const cells = Parser.parse(rawContent);
-        
-        // TODO: Update cell calculations (Calculator)
-        // TODO: Update dependency graph (ReactivityManager - might be part of CellModel or a separate module)
-        // TODO: Render cells (Renderer)
+        // Old parsing logic - will be replaced by a more robust system
+        // const rawContent = editor.innerHTML; 
+        // const cells = Parser.parse(rawContent);
+        // console.log("Parsed cells:", cells);
 
-        // For now, just log parsed cells
-        console.log("Parsed cells:", cells);
+        // TODO: Update cell calculations (Calculator) - This will involve creating Cell objects
+        // TODO: Update dependency graph (ReactivityManager - might be part of CellModel or a separate module)
+        // TODO: Render cells (Renderer) - This will use Cell objects
 
         // The renderer will eventually modify editor.innerHTML to add annotations,
         // so we need a strategy to avoid re-parsing rendered output or manage it carefully.
@@ -74,6 +73,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // or replace specific placeholders.
         // For contenteditable, it might involve finding cell syntax, replacing it with a
         // non-editable span containing the rendered cell, and storing the original syntax.
+        
+        // Current naive rendering approach:
+        const currentHtml = editor.innerHTML;
+        // The Parser.parse method currently looks for raw cell definition syntax.
+        const parsedCellDefinitions = Parser.parse(currentHtml);
+
+        if (parsedCellDefinitions.length > 0) {
+            console.log("Raw cell definitions found for rendering:", parsedCellDefinitions);
+            // Renderer.renderAllCellsInEditor replaces raw syntax with styled spans + mock data.
+            const newHtml = Renderer.renderAllCellsInEditor(currentHtml, parsedCellDefinitions);
+            
+            if (editor.innerHTML !== newHtml) {
+                // Preserve cursor position if possible (complex with innerHTML changes)
+                // For now, this simple update will likely reset cursor.
+                editor.innerHTML = newHtml;
+            }
+        } else {
+            // This branch will be hit if no raw un-rendered cell syntax is found.
+            // This is expected after initial rendering, or if the document has no cells.
+            console.log("No new raw cell definitions found by parser in current content.");
+        }
     }
 
     // Expose some functions globally if needed for modules, or use ES6 modules if preferred later.
