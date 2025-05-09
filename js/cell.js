@@ -1,37 +1,182 @@
 // Represents a single computational cell
 
-// Placeholder for Cell class/object structure
-// Will be expanded based on SPECIFICATION.md D. Cell Model
-
-/*
-Example structure:
 class Cell {
-    constructor(id, displayName, formulaString, unit) {
+    constructor(id, displayName, rawFormula, rawText) {
         this.id = id;
         this.displayName = displayName;
-        this.rawFormula = formulaString;
-        this.unit = unit;
-        this.value = null; // Scalar or array of samples
-        this.dependencies = []; // Cell IDs it depends on
-        this.dependents = []; // Cell IDs that depend on it
-        this.errorState = null; // null, 'error', 'dependent-error'
-        // Cached display values
+        this.rawFormula = rawFormula; // The string like "PERT(1,2,3)" or "10 to 20" or "100"
+        this.rawText = rawText;     // The full original string e.g. "[MyCell][PERT(1,2,3)]"
+
+        this.type = null;         // 'constant', 'normal', 'pert', 'dataArray', 'formula'
+        this.parameters = {};     // e.g., { value: 100 } or { min: 1, max: 5 }
+        
+        this.samples = [];        // Array of Monte Carlo samples
+        this.value = null;        // For constants, the direct value
         this.mean = null;
         this.ci = { lower: null, upper: null }; // 90% CI
-        this.histogramData = null;
+        this.histogramData = [];  // For rendering histogram
+        
+        this.dependencies = [];   // Cell IDs this cell depends on (for complex formulas)
+        this.dependents = [];     // Cell IDs that depend on this cell
+        this.errorState = null;   // null, 'error', 'dependent-error'
+
+        this.processFormula();
     }
 
-    parseFormula() {
-        // Determine type (PERT, Normal, Constant, Data Array, Formula)
-        // Extract parameters or dependent cell IDs
+    updateFormula(newRawFormula, newRawText) {
+        this.rawFormula = newRawFormula;
+        this.rawText = newRawText;
+        // Reset values before reprocessing
+        this.samples = [];
+        this.value = null;
+        this.mean = null;
+        this.ci = { lower: null, upper: null };
+        this.histogramData = [];
+        this.errorState = null;
+        this.dependencies = [];
+        this.processFormula();
     }
 
-    calculate(cellsMap, globalSamples) {
-        // Use Calculator module
-        // Store results (value, mean, ci, histogramData)
-        // Handle errors
+    processFormula() {
+        this.errorState = null; // Clear previous errors
+        const formula = this.rawFormula.trim();
+
+        // Try to parse as a constant number
+        if (/^\s*[-+]?\d+(\.\d+)?\s*$/.test(formula)) {
+            this.type = 'constant';
+            this.value = parseFloat(formula);
+            this.parameters = { value: this.value };
+            this.mean = this.value;
+            this.samples = [this.value]; // Represent as a single sample for consistency
+            this.ci = { lower: this.value, upper: this.value };
+            this.histogramData = Calculator.calculateStats(this.samples).histogramData; // Generate basic histogram
+            console.log(`Cell ${this.id} parsed as constant:`, this.value);
+            return;
+        }
+
+        // Try to parse as "X to Y" (Normal distribution)
+        const normalMatch = formula.match(/^\s*([-+]?\d+(\.\d+)?)\s*to\s*([-+]?\d+(\.\d+)?)\s*$/);
+        if (normalMatch) {
+            this.type = 'normal';
+            const val1 = parseFloat(normalMatch[1]);
+            const val2 = parseFloat(normalMatch[3]);
+            this.parameters = { lowerCI: Math.min(val1, val2), upperCI: Math.max(val1, val2) };
+            try {
+                this.samples = Calculator.generateNormalSamplesFromCI(this.parameters.lowerCI, this.parameters.upperCI);
+                const stats = Calculator.calculateStats(this.samples);
+                this.mean = stats.mean;
+                this.ci = stats.ci;
+                this.histogramData = stats.histogramData;
+                console.log(`Cell ${this.id} parsed as normal:`, this.parameters, "Mean:", this.mean);
+            } catch (e) {
+                this.errorState = 'error';
+                console.error(`Error calculating normal distribution for ${this.id}:`, e);
+            }
+            return;
+        }
+
+        // Try to parse as PERT(min, likely, max, [lambda]) or PERT(min, max)
+        const pertMatch = formula.match(/^PERT\s*\(([^)]*)\)\s*$/i);
+        if (pertMatch) {
+            this.type = 'pert';
+            const argsString = pertMatch[1];
+            const args = argsString.split(',').map(arg => parseFloat(arg.trim()));
+            
+            if (args.some(isNaN)) {
+                this.errorState = 'error';
+                console.error(`Cell ${this.id} PERT: Invalid arguments (not all numbers) "${argsString}"`);
+                return;
+            }
+
+            let min, likely, max, lambda = 4; // Default lambda
+
+            if (args.length === 2) { // PERT(min, max)
+                min = args[0];
+                max = args[1];
+                likely = (min + max) / 2;
+            } else if (args.length === 3) { // PERT(min, likely, max)
+                min = args[0];
+                likely = args[1];
+                max = args[2];
+            } else if (args.length === 4) { // PERT(min, likely, max, lambda)
+                min = args[0];
+                likely = args[1];
+                max = args[2];
+                lambda = args[3];
+            } else {
+                this.errorState = 'error';
+                console.error(`Cell ${this.id} PERT: Incorrect number of arguments (${args.length}) "${argsString}"`);
+                return;
+            }
+            
+            if (!(min <= likely && likely <= max)) {
+                 this.errorState = 'error';
+                 console.error(`Cell ${this.id} PERT: Invalid parameters (min <= likely <= max not met). min=${min}, likely=${likely}, max=${max}`);
+                 return;
+            }
+            if (min === max) { // If min and max are same, treat as constant
+                 this.type = 'constant'; // Or a very narrow PERT
+                 this.value = min;
+                 this.parameters = { value: this.value };
+                 this.mean = this.value;
+                 this.samples = [this.value];
+                 this.ci = { lower: this.value, upper: this.value };
+                 this.histogramData = Calculator.calculateStats(this.samples).histogramData;
+                 console.log(`Cell ${this.id} PERT (min=max) parsed as constant:`, this.value);
+                 return;
+            }
+
+
+            this.parameters = { min, likely, max, lambda };
+            try {
+                this.samples = Calculator.generatePertSamples(min, likely, max, lambda);
+                const stats = Calculator.calculateStats(this.samples);
+                this.mean = stats.mean;
+                this.ci = stats.ci;
+                this.histogramData = stats.histogramData;
+                console.log(`Cell ${this.id} parsed as PERT:`, this.parameters, "Mean:", this.mean);
+            } catch (e) {
+                this.errorState = 'error';
+                console.error(`Error calculating PERT distribution for ${this.id}:`, e);
+            }
+            return;
+        }
+        
+        // Try to parse as inline data array e.g., [1,2,3,4]
+        const arrayMatch = formula.match(/^\s*\[\s*((?:[-+]?\d+(\.\d+)?\s*,\s*)*[-+]?\d+(\.\d+)?)\s*\]\s*$/);
+        if (arrayMatch && arrayMatch[1]) {
+            this.type = 'dataArray';
+            try {
+                const dataValues = arrayMatch[1].split(',').map(s => parseFloat(s.trim()));
+                if (dataValues.some(isNaN)) {
+                    this.errorState = 'error';
+                    console.error(`Cell ${this.id} Data Array: Invalid numbers in array "${arrayMatch[1]}"`);
+                    return;
+                }
+                this.parameters = { data: dataValues };
+                this.samples = Calculator.processInlineDataArray(dataValues);
+                const stats = Calculator.calculateStats(this.samples);
+                this.mean = stats.mean;
+                this.ci = stats.ci;
+                this.histogramData = stats.histogramData;
+                console.log(`Cell ${this.id} parsed as Data Array:`, dataValues, "Mean:", this.mean);
+            } catch (e) {
+                 this.errorState = 'error';
+                 console.error(`Error processing Data Array for ${this.id}:`, e);
+            }
+            return;
+        }
+
+
+        // If none of the above, it's a complex formula (or an error)
+        // For now, we just mark it and don't calculate.
+        // TODO: Implement formula evaluation (e.g., CellA + CellB)
+        this.type = 'formula';
+        this.parameters = {}; // No specific parameters for a generic formula yet
+        this.errorState = 'error'; // Mark as error until formula evaluation is implemented
+        console.log(`Cell ${this.id} marked as complex formula (not yet supported):`, formula);
     }
 }
-*/
 
-console.log('cell.js loaded');
+window.Cell = Cell; // Make Cell class globally available for now
+console.log('cell.js loaded with Cell class');

@@ -11,16 +11,103 @@ document.addEventListener('DOMContentLoaded', () => {
     const importDocBtn = document.getElementById('importDocBtn');
     const globalSamplesInput = document.getElementById('globalSamples');
 
+    const CellsCollection = {}; // Global store for Cell objects
+
     // Initialize the application
     function init() {
         console.log('Initializing Guesstinote...');
         // Load tutorial document or last saved document
-        Persistence.loadInitialDocument();
+        Persistence.loadInitialDocument(); // This will call Guesstinote.refreshEditor -> processFullDocument
         // Add event listeners
         setupEventListeners();
-        // Initial parse and render
-        handleContentChange();
+        // Initial parse and render is now handled by refreshEditor called from Persistence
     }
+    
+    function processFullDocument() {
+        console.log('Processing full document content...');
+        const editorContent = editor.innerHTML;
+        // We need to parse text nodes and replace cell definitions.
+        // This is a simplified initial pass. A robust solution would traverse the DOM.
+        // For now, we'll assume content is primarily text or simple P tags.
+        
+        // Clear existing cells from collection before reprocessing full doc
+        // to avoid issues with stale cells if definitions are removed from text.
+        // This is a blunt approach; a more refined one would diff.
+        for (const key in CellsCollection) {
+            delete CellsCollection[key];
+        }
+
+        let newHtml = editorContent; // Start with current HTML
+        
+        // Create a temporary div to parse and manipulate HTML structure safely
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = editorContent;
+
+        // Walk the DOM tree of tempDiv
+        const walk = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        const nodesToProcess = [];
+        while(node = walk.nextNode()) {
+            nodesToProcess.push(node);
+        }
+
+        let modified = false;
+        // Process text nodes in reverse to handle modifications safely
+        for (let i = nodesToProcess.length - 1; i >= 0; i--) {
+            const textNode = nodesToProcess[i];
+            if (textNode.parentNode && textNode.parentNode.closest('.guesstimate-cell')) {
+                continue; // Skip text inside already rendered cells
+            }
+
+            const textContent = textNode.textContent;
+            Parser.cellDefinitionRegex.lastIndex = 0;
+            let match;
+            const cellMatchesInNode = [];
+            while((match = Parser.cellDefinitionRegex.exec(textContent)) !== null) {
+                cellMatchesInNode.push(match);
+            }
+
+            for (let j = cellMatchesInNode.length - 1; j >= 0; j--) {
+                const currentMatch = cellMatchesInNode[j];
+                const rawText = currentMatch[0];
+                const idPart = currentMatch[1];
+                const namePart = currentMatch[2];
+                const formulaPart = currentMatch[3];
+
+                const cellId = idPart ? idPart.trim() : namePart.trim();
+                const displayName = namePart.trim();
+                const formula = formulaPart.trim();
+
+                let cell = CellsCollection[cellId];
+                if (!cell) {
+                    cell = new Cell(cellId, displayName, formula, rawText);
+                    CellsCollection[cellId] = cell;
+                } else {
+                    cell.displayName = displayName;
+                    cell.updateFormula(formula, rawText);
+                }
+
+                const cellSpan = Renderer.renderCell(cell);
+                
+                // Create a range within the textNode to replace
+                const range = document.createRange();
+                range.setStart(textNode, currentMatch.index);
+                range.setEnd(textNode, currentMatch.index + rawText.length);
+                range.deleteContents();
+                range.insertNode(cellSpan);
+                modified = true;
+            }
+        }
+        
+        if (modified) {
+            // If modifications happened, update the actual editor's content
+            // This replaces the entire content, so cursor position is lost.
+            // This is acceptable for initial load.
+            window.Guesstinote.setEditorContent(tempDiv.innerHTML);
+        }
+        console.log("Full document processing complete. CellsCollection:", CellsCollection);
+    }
+
 
     function unprettifyCell(cellElement) {
         if (!cellElement || !cellElement.classList.contains('guesstimate-cell')) return;
@@ -175,48 +262,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const cellId = idPart ? idPart.trim() : namePart.trim();
             const displayName = namePart.trim();
             const formula = formulaPart.trim();
-            const unit = null; // Unit is removed
+            // const unit = null; // Unit is removed
 
-            // Mock data for rendering, actual calculation will come later
-            // This structure should align with what Renderer.renderCell expects
-            // and eventually what the Cell model provides.
-            let mockMean = Math.random() * 10;
-            let mockLower = mockMean - Math.random() * 2;
-            let mockUpper = mockMean + Math.random() * 2;
-             if (formula.startsWith("PERT")) {
-                const nums = formula.match(/\d+(\.\d+)?/g);
-                if (nums && nums.length >= 2) { // min, likely, max or min, max
-                    mockMean = nums.reduce((sum, v) => sum + parseFloat(v), 0) / nums.length; // very rough
-                    mockLower = mockMean * 0.8;
-                    mockUpper = mockMean * 1.2;
-                }
-            } else if (!isNaN(parseFloat(formula))) { // Constant
-                mockMean = parseFloat(formula);
-                mockLower = mockMean;
-                mockUpper = mockMean;
+            let cell = CellsCollection[cellId];
+            if (!cell) {
+                cell = new Cell(cellId, displayName, formula, rawText);
+                CellsCollection[cellId] = cell;
+            } else {
+                // Cell exists, update its formula and rawText, then reprocess
+                cell.displayName = displayName; // Display name might change if ID part was absent
+                cell.updateFormula(formula, rawText);
             }
-
-            const cellData = {
-                id: cellId,
-                displayName: displayName,
-                formula: formula,
-                unit: unit,
-                rawText: rawText, // Crucial for potential "un-prettifying"
-                // Mock values for now:
-                value: (isNaN(parseFloat(formula)) ? null : parseFloat(formula)), // for constants
-                mean: (isNaN(parseFloat(formula)) ? mockMean : null), // null for constants if value is set
-                ci: (isNaN(parseFloat(formula)) ? { lower: Math.max(0, mockLower), upper: mockUpper } : null),
-                histogramData: Array(10).fill(0).map(() => Math.random() * 10),
-                errorState: null
-            };
+            
+            // The cellData for the renderer is now the cell object itself,
+            // which contains calculated mean, ci, value, errorState, etc.
+            const cellDataForRenderer = cell; 
             
             // Create a range that covers exactly the matched raw text in the current text node
             const cellRange = document.createRange();
             cellRange.setStart(currentNode, currentMatch.index);
             cellRange.setEnd(currentNode, currentMatch.index + rawText.length);
 
-            // Create the "prettified" cell span
-            const cellSpan = Renderer.renderCell(cellData);
+            // Create the "prettified" cell span using data from the Cell object
+            const cellSpan = Renderer.renderCell(cellDataForRenderer);
 
             // Replace the raw text with the prettified span
             cellRange.deleteContents();
@@ -245,8 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
         getDocName: () => docNameInput.value,
         setDocName: (name) => { docNameInput.value = name; },
         getGlobalSamples: () => parseInt(globalSamplesInput.value, 10) || 5000,
-        // Add a function to trigger re-parse and render, e.g., after import
-        refreshEditor: handleContentChange 
+        // refreshEditor will now process the whole document
+        refreshEditor: processFullDocument 
     };
 
     init();

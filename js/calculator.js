@@ -10,25 +10,39 @@ const Calculator = {
 
     // Placeholder for PERT distribution
     // FR3.3.3: PERT(min, most_likely, max, lambda=4), PERT(min, most_likely, max), PERT(min, max)
-    generatePertSamples: function(min, mostLikely, max, lambda = 4) {
+    generatePertSamples: function(min, mostLikely, max, lambda = 4) { // Lambda currently unused by triangular
         const samples = [];
         const numSamples = this.getGlobalSamples();
-        // Simplified PERT logic (actual implementation requires beta distribution)
-        // This is a placeholder and NOT a correct PERT distribution.
-        // For a real PERT, you'd use a Beta distribution scaled and shifted.
-        // Mean for PERT is (min + lambda * mostLikely + max) / (lambda + 2)
+
+        if (min > mostLikely || mostLikely > max || min > max) {
+            console.error("Invalid PERT parameters for triangular: min <= mostLikely <= max not met.", {min, mostLikely, max});
+            // Fill with a fallback or throw error
+            for (let i = 0; i < numSamples; i++) samples.push((min + mostLikely + max) / 3); // Fallback to mean
+            return samples.sort((a,b) => a-b);
+        }
+        if (min === max) { // All values are the same
+             for (let i = 0; i < numSamples; i++) samples.push(min);
+             return samples; // Already sorted
+        }
+
+        // Using Triangular Distribution as an approximation for PERT
+        // (Actual PERT uses Beta distribution, lambda would shape it)
+        // For triangular:
+        // F(c) = (c - a) / (b - a), where c is mostLikely, a is min, b is max
+        const fc = (mostLikely - min) / (max - min);
+
         for (let i = 0; i < numSamples; i++) {
-            // Extremely naive placeholder: just average of min, mostLikely, max
-            // This needs to be replaced with a proper Beta-PERT calculation.
-            const randomBeta = Math.random(); // This is NOT a beta variate.
-            let sample = min + (max - min) * randomBeta; // Uniform for now
-            if (Math.random() < 0.5) { // Skew towards mostLikely naively
-                sample = (sample + mostLikely) / 2;
+            const rand = Math.random();
+            let sample;
+            if (rand < fc) {
+                sample = min + Math.sqrt(rand * (max - min) * (mostLikely - min));
+            } else {
+                sample = max - Math.sqrt((1 - rand) * (max - min) * (max - mostLikely));
             }
             samples.push(sample);
         }
-        console.warn("Calculator.generatePertSamples is using a placeholder uniform distribution, not a proper PERT distribution.");
-        return samples.sort((a, b) => a - b); // Sorted for easier CI calculation
+        // console.log(`Generated ${numSamples} triangular samples for PERT(${min}, ${mostLikely}, ${max})`);
+        return samples.sort((a, b) => a - b);
     },
 
     // Placeholder for Normal distribution from 90% CI
