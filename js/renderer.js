@@ -41,7 +41,7 @@ const Renderer = {
             formulaSpan.style.marginLeft = '5px'; // Basic styling
             formulaSpan.style.fontStyle = 'italic';
             formulaSpan.style.color = '#777';
-            formulaSpan.textContent = `(Formula: ${cellData.formula})`;
+            formulaSpan.textContent = `(Formula: ${cellData.rawFormula})`; // Changed cellData.formula to cellData.rawFormula
             cellSpan.appendChild(formulaSpan);
 
             // const histogramSpan = document.createElement('span');
@@ -61,7 +61,7 @@ const Renderer = {
             formulaSpan.style.marginLeft = '5px';
             formulaSpan.style.fontStyle = 'italic';
             formulaSpan.style.color = '#777';
-            formulaSpan.textContent = `(Formula: ${cellData.formula})`;
+            formulaSpan.textContent = `(Formula: ${cellData.rawFormula})`; // Changed cellData.formula to cellData.rawFormula
             cellSpan.appendChild(formulaSpan);
 
         } else {
