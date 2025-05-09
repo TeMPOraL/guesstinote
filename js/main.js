@@ -53,47 +53,109 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleContentChange() {
-        // This function will be called whenever the editor content might have changed
-        // or when settings like global samples change.
-        console.log('Content change detected. Re-parsing and rendering.');
-        
-        // Old parsing logic - will be replaced by a more robust system
-        // const rawContent = editor.innerHTML; 
-        // const cells = Parser.parse(rawContent);
-        // console.log("Parsed cells:", cells);
+    function handleContentChange(event) {
+        // This function is called on 'input' in the editor.
+        // It attempts to find and "prettify" newly typed cell definitions.
+        console.log('Content change detected.');
 
-        // TODO: Update cell calculations (Calculator) - This will involve creating Cell objects
-        // TODO: Update dependency graph (ReactivityManager - might be part of CellModel or a separate module)
-        // TODO: Render cells (Renderer) - This will use Cell objects
+        const selection = window.getSelection();
+        if (!selection.rangeCount || selection.isCollapsed === false) return;
 
-        // The renderer will eventually modify editor.innerHTML to add annotations,
-        // so we need a strategy to avoid re-parsing rendered output or manage it carefully.
-        // One common strategy is to parse the raw input, then render into a separate layer
-        // or replace specific placeholders.
-        // For contenteditable, it might involve finding cell syntax, replacing it with a
-        // non-editable span containing the rendered cell, and storing the original syntax.
-        
-        // Current naive rendering approach:
-        const currentHtml = editor.innerHTML;
-        // The Parser.parse method currently looks for raw cell definition syntax.
-        const parsedCellDefinitions = Parser.parse(currentHtml);
+        const range = selection.getRangeAt(0);
+        const currentNode = range.startContainer;
 
-        if (parsedCellDefinitions.length > 0) {
-            console.log("Raw cell definitions found for rendering:", parsedCellDefinitions);
-            // Renderer.renderAllCellsInEditor replaces raw syntax with styled spans + mock data.
-            const newHtml = Renderer.renderAllCellsInEditor(currentHtml, parsedCellDefinitions);
-            
-            if (editor.innerHTML !== newHtml) {
-                // Preserve cursor position if possible (complex with innerHTML changes)
-                // For now, this simple update will likely reset cursor.
-                editor.innerHTML = newHtml;
-            }
-        } else {
-            // This branch will be hit if no raw un-rendered cell syntax is found.
-            // This is expected after initial rendering, or if the document has no cells.
-            console.log("No new raw cell definitions found by parser in current content.");
+        // We are interested in changes within text nodes, not inside already rendered cells.
+        if (currentNode.nodeType !== Node.TEXT_NODE || 
+            (currentNode.parentNode && currentNode.parentNode.closest('.guesstimate-cell'))) {
+            // If inside a cell or not a text node, do nothing for now.
+            // Future: This is where "un-prettifying" logic might go if backspacing into a cell.
+            return;
         }
+
+        const textContent = currentNode.textContent;
+        Parser.cellDefinitionRegex.lastIndex = 0; // Reset regex state
+        let match;
+
+        // Iterate over all matches in the current text node.
+        // This is to handle cases where pasting might introduce multiple cells,
+        // or multiple cells are typed quickly.
+        // We process them in reverse order of appearance in the text node to avoid issues
+        // with range offsets changing as we modify the DOM.
+        const matches = [];
+        while((match = Parser.cellDefinitionRegex.exec(textContent)) !== null) {
+            matches.push(match);
+        }
+
+        for (let i = matches.length - 1; i >= 0; i--) {
+            const currentMatch = matches[i];
+            const rawText = currentMatch[0];
+            const idPart = currentMatch[1]; // Optional ID before |
+            const namePart = currentMatch[2]; // Name, or ID if idPart is null
+            const formulaPart = currentMatch[3];
+            const unitPart = currentMatch[4]; // Optional unit
+
+            const cellId = idPart ? idPart.trim() : namePart.trim();
+            const displayName = namePart.trim();
+            const formula = formulaPart.trim();
+            const unit = unitPart ? unitPart.trim() : null;
+
+            // Mock data for rendering, actual calculation will come later
+            // This structure should align with what Renderer.renderCell expects
+            // and eventually what the Cell model provides.
+            let mockMean = Math.random() * 10;
+            let mockLower = mockMean - Math.random() * 2;
+            let mockUpper = mockMean + Math.random() * 2;
+             if (formula.startsWith("PERT")) {
+                const nums = formula.match(/\d+(\.\d+)?/g);
+                if (nums && nums.length >= 2) { // min, likely, max or min, max
+                    mockMean = nums.reduce((sum, v) => sum + parseFloat(v), 0) / nums.length; // very rough
+                    mockLower = mockMean * 0.8;
+                    mockUpper = mockMean * 1.2;
+                }
+            } else if (!isNaN(parseFloat(formula))) { // Constant
+                mockMean = parseFloat(formula);
+                mockLower = mockMean;
+                mockUpper = mockMean;
+            }
+
+            const cellData = {
+                id: cellId,
+                displayName: displayName,
+                formula: formula,
+                unit: unit,
+                rawText: rawText, // Crucial for potential "un-prettifying"
+                // Mock values for now:
+                value: (isNaN(parseFloat(formula)) ? null : parseFloat(formula)), // for constants
+                mean: (isNaN(parseFloat(formula)) ? mockMean : null), // null for constants if value is set
+                ci: (isNaN(parseFloat(formula)) ? { lower: Math.max(0, mockLower), upper: mockUpper } : null),
+                histogramData: Array(10).fill(0).map(() => Math.random() * 10),
+                errorState: null
+            };
+            
+            // Create a range that covers exactly the matched raw text in the current text node
+            const cellRange = document.createRange();
+            cellRange.setStart(currentNode, currentMatch.index);
+            cellRange.setEnd(currentNode, currentMatch.index + rawText.length);
+
+            // Create the "prettified" cell span
+            const cellSpan = Renderer.renderCell(cellData);
+
+            // Replace the raw text with the prettified span
+            cellRange.deleteContents();
+            cellRange.insertNode(cellSpan);
+
+            // Attempt to move the cursor after the inserted span
+            // This is important for a smooth typing experience.
+            const newRange = document.createRange();
+            newRange.setStartAfter(cellSpan);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+
+            console.log(`Replaced raw cell text "${rawText}" with prettified cell.`);
+        }
+        // Note: The initial rendering of cells on document load is not handled here yet.
+        // This handleContentChange is focused on live typing.
     }
 
     // Expose some functions globally if needed for modules, or use ES6 modules if preferred later.
