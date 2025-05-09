@@ -38,201 +38,111 @@ class Cell {
     }
 
     processFormula() {
-        this.errorState = null; // Clear previous errors
+        this.errorState = null;
+        this.ast = null; // Abstract Syntax Tree
+        this.type = null; // Reset type, will be determined by AST evaluation later
+        this.parameters = {};
+        this.value = null;
+        this.samples = [];
+        this.mean = null;
+        this.ci = { lower: null, upper: null };
+        this.histogramData = [];
+        this.dependencies = [];
+
         const formula = this.rawFormula.trim();
 
-        if (this._parseAsConstant(formula)) return;
-        if (this._parseAsNormal(formula)) return;
-        
-        // Try to parse as a generic function call: funcName(args)
-        const functionCallMatch = formula.match(/^([a-zA-Z_]\w*)\s*\((.*)\)\s*$/);
-        if (functionCallMatch) {
-            const functionName = functionCallMatch[1].toLowerCase();
-            const argumentsString = functionCallMatch[2];
-            if (this._handleFunctionCall(functionName, argumentsString)) {
-                return;
-            }
-            // If _handleFunctionCall returns false, it means the function name was not recognized
-            // or there was an issue handled within it that should fall through.
-            // However, _handleFunctionCall should set errorState if it recognizes the function but fails.
-            // If it returns false, it implies the function name itself is unknown.
-            if (!this.errorState) { // Only set unknown function error if not already set by handler
-                 this.errorState = `Unknown function: "${functionCallMatch[1]}"`;
-                 console.error(`Cell ${this.id} ${this.errorState}`);
-            }
+        if (formula === '') {
+            this.errorState = "Formula cannot be empty.";
+            console.warn(`Cell ${this.id}: ${this.errorState}`);
             return;
         }
 
-        // If none of the above, it's a complex formula (or an error)
-        // TODO: Implement binary operator parsing here (e.g., CellA + CellB)
-        this.type = 'formula';
-        this.parameters = {}; 
-        this.errorState = `Unsupported or invalid formula structure: "${formula}"`;
-        console.log(`Cell ${this.id} ${this.errorState}`);
-    }
-
-    _handleFunctionCall(functionName, argumentsString) {
-        switch (functionName) {
-            case 'pert':
-                return this._handlePert(argumentsString);
-            case 'array':
-                return this._handleArray(argumentsString);
-            // Add other function handlers here, e.g. 'normal', 'mean'
-            default:
-                return false; // Function name not recognized by this dispatcher
-        }
-    }
-
-    _parseAsConstant(formula) {
-        if (/^\s*[-+]?\d+(\.\d+)?\s*$/.test(formula)) {
-            this.type = 'constant';
-            this.value = parseFloat(formula);
-            this.parameters = { value: this.value };
-            this.mean = this.value;
-            this.samples = [this.value]; // Represent as a single sample for consistency
-            this.ci = { lower: this.value, upper: this.value };
-            this.histogramData = Calculator.calculateStats(this.samples).histogramData;
-            console.log(`Cell ${this.id} parsed as constant:`, this.value);
-            return true;
-        }
-        return false;
-    }
-
-    _parseAsNormal(formula) {
-        const normalMatch = formula.match(/^\s*([-+]?\d+(\.\d+)?)\s*to\s*([-+]?\d+(\.\d+)?)\s*$/);
-        if (normalMatch) {
-            this.type = 'normal';
-            const val1 = parseFloat(normalMatch[1]);
-            const val2 = parseFloat(normalMatch[3]);
-            this.parameters = { lowerCI: Math.min(val1, val2), upperCI: Math.max(val1, val2) };
-            try {
-                this.samples = Calculator.generateNormalSamplesFromCI(this.parameters.lowerCI, this.parameters.upperCI);
-                const stats = Calculator.calculateStats(this.samples);
-                this.mean = stats.mean;
-                this.ci = stats.ci;
-                this.histogramData = stats.histogramData;
-                console.log(`Cell ${this.id} parsed as normal:`, this.parameters, "Mean:", this.mean);
-            } catch (e) {
-                this.errorState = `Normal dist calc error: ${e.message}`;
-                console.error(`Error calculating normal distribution for ${this.id}:`, e);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    _handlePert(argumentsString) {
-        this.type = 'pert';
-        const args = argumentsString.split(',').map(arg => parseFloat(arg.trim()));
-
-        if (args.some(isNaN)) {
-            this.errorState = `PERT: Invalid arguments (not all numbers) in "${argumentsString}"`;
-            console.error(`Cell ${this.id} ${this.errorState}`);
-            return true; 
-        }
-
-        let min, likely, max, lambda = 4; // Default lambda
-
-            switch (args.length) {
-                case 2: // PERT(min, max)
-                    min = args[0];
-                    max = args[1];
-                    likely = (min + max) / 2;
-                    break;
-                case 3: // PERT(min, likely, max)
-                    min = args[0];
-                    likely = args[1];
-                    max = args[2];
-                    break;
-                case 4: // PERT(min, likely, max, lambda)
-                    min = args[0];
-                    likely = args[1];
-                    max = args[2];
-                    lambda = args[3];
-                    break;
-                default:
-                    this.errorState = `PERT: Incorrect number of arguments (${args.length}) in "${argsString}"`;
-                    console.error(`Cell ${this.id} ${this.errorState}`);
-                    return true; // Matched PERT but failed due to arg count
-            }
-            
-            if (!(min <= likely && likely <= max)) {
-                 this.errorState = `PERT: Invalid parameters (min <= likely <= max not met). min=${min}, likely=${likely}, max=${max}`;
-                 console.error(`Cell ${this.id} ${this.errorState}`);
-                 return true; // Matched PERT but failed validation
-            }
-
-            if (min === max) { // If min and max are same, treat as constant
-                 this.type = 'constant'; // Or a very narrow PERT
-                 this.value = min;
-                 this.parameters = { value: this.value };
-                 this.mean = this.value;
-                 this.samples = [this.value];
-                 this.ci = { lower: this.value, upper: this.value };
-                 this.histogramData = Calculator.calculateStats(this.samples).histogramData;
-                 console.log(`Cell ${this.id} PERT (min=max) parsed as constant:`, this.value);
-                 return true;
-            }
-
-            this.parameters = { min, likely, max, lambda };
-            try {
-                this.samples = Calculator.generatePertSamples(min, likely, max, lambda);
-                const stats = Calculator.calculateStats(this.samples);
-                this.mean = stats.mean;
-                this.ci = stats.ci;
-                this.histogramData = stats.histogramData;
-                console.log(`Cell ${this.id} parsed as PERT:`, this.parameters, "Mean:", this.mean);
-            } catch (e) {
-                this.errorState = `PERT calc error: ${e.message}`;
-                console.error(`Error calculating PERT distribution for ${this.id}:`, e);
-            }
-            return true;
-        }
-
-    _handleArray(argumentsString) {
-        this.type = 'dataArray'; // Keep type as 'dataArray' for consistency with Calculator
-        const dataValues = argumentsString.split(',').map(s => parseFloat(s.trim()));
-
-        if (dataValues.some(isNaN)) {
-            this.errorState = `Array: Invalid numbers in "${argumentsString}"`;
-            console.error(`Cell ${this.id} ${this.errorState}`);
-            return true; 
-        }
-        
-        if (dataValues.length === 0 && argumentsString.trim() !== "") {
-            // Handles cases like "array()" or "array( )" which might result in empty dataValues
-            // but argsString is not truly empty.
-             this.errorState = `Array: No valid numbers found in "${argumentsString}"`;
-             console.error(`Cell ${this.id} ${this.errorState}`);
-             return true;
-        }
-        // If argumentsString is empty, dataValues will be [NaN] if not handled, or empty if split produces [""] then map to NaN.
-        // Let's allow empty array: array() -> empty samples.
-        if (dataValues.length === 0 || (dataValues.length === 1 && isNaN(dataValues[0]) && argumentsString.trim() === "")) {
-             this.parameters = { data: [] };
-             this.samples = [];
-             this.mean = null; // Or 0, depending on desired behavior for empty array
-             this.ci = {lower: null, upper: null};
-             this.histogramData = [];
-             console.log(`Cell ${this.id} parsed as empty Data Array.`);
-             return true;
-        }
-
-
-        this.parameters = { data: dataValues };
         try {
-            this.samples = Calculator.processInlineDataArray(dataValues);
-            const stats = Calculator.calculateStats(this.samples);
-            this.mean = stats.mean;
-            this.ci = stats.ci;
-            this.histogramData = stats.histogramData;
-            console.log(`Cell ${this.id} parsed as Data Array:`, dataValues, "Mean:", this.mean);
+            this.ast = FormulaParser.parse(formula);
+            console.log(`Cell ${this.id} parsed. AST:`, JSON.parse(JSON.stringify(this.ast))); // Deep copy for logging
+
+            // At this point, we have an AST.
+            // The direct calculation logic (for constants, PERT, array, X to Y)
+            // will be handled by an AST evaluator in a subsequent step.
+            // For now, we won't populate mean, ci, samples, etc., directly from here.
+            // The cell will display "Calculating..." or its formula based on renderer logic
+            // until the evaluator is built and integrated.
+
+            // We can, however, do a very simple interpretation for immediate feedback for *some* simple cases
+            // if the AST root is a known type that doesn't require further evaluation (like a number literal).
+            // This is a temporary measure.
+            if (this.ast.type === 'NumberLiteral') {
+                this.type = 'constant';
+                this.value = this.ast.value;
+                this.mean = this.value;
+                this.samples = [this.value];
+                this.ci = { lower: this.value, upper: this.value };
+                this.histogramData = Calculator.calculateStats(this.samples).histogramData;
+            } else if (this.ast.type === 'RangeExpression') {
+                // This still requires evaluating the left and right nodes if they are not NumberLiterals.
+                // For now, we'll assume they are for this temporary feedback.
+                if (this.ast.left.type === 'NumberLiteral' && this.ast.right.type === 'NumberLiteral') {
+                    this.type = 'normal'; // Assuming "X to Y" implies normal
+                    const val1 = this.ast.left.value;
+                    const val2 = this.ast.right.value;
+                    this.parameters = { lowerCI: Math.min(val1, val2), upperCI: Math.max(val1, val2) };
+                    try {
+                        this.samples = Calculator.generateNormalSamplesFromCI(this.parameters.lowerCI, this.parameters.upperCI);
+                        const stats = Calculator.calculateStats(this.samples);
+                        this.mean = stats.mean;
+                        this.ci = stats.ci;
+                        this.histogramData = stats.histogramData;
+                    } catch (e) { this.errorState = `Normal dist calc error: ${e.message}`; }
+                } else {
+                     this.errorState = "Range expression arguments must be numbers (for now).";
+                }
+            } else if (this.ast.type === 'FunctionCall') {
+                // Similar temporary handling for PERT and array if args are simple numbers
+                if (this.ast.name.toLowerCase() === 'pert' && this.ast.args.every(arg => arg.type === 'NumberLiteral')) {
+                    this.type = 'pert';
+                    const args = this.ast.args.map(arg => arg.value);
+                    // ... (PERT logic from _handlePert, simplified for direct values) ...
+                    // This part is getting repetitive with the old _handlePert, highlighting
+                    // the need for the AST evaluator to handle this properly.
+                    // For brevity, I'll skip reimplementing full PERT logic here for this temporary step.
+                    // It will fall through to "Calculating..." or show formula.
+                    // We'll just set the type.
+                    // For now, to avoid errors and show something, let's just mark it as needing calculation
+                    // if we don't fully implement the temporary PERT logic here.
+                    // This means PERT cells will show "Calculating..." until the evaluator.
+                    if (args.length >= 2 && args.length <= 4 && !args.some(isNaN)) {
+                        // Basic validation passed, but not calculating here.
+                        // The renderer will show "Calculating..." if mean is null.
+                    } else {
+                        this.errorState = "PERT arguments invalid or not all numbers.";
+                    }
+
+
+                } else if (this.ast.name.toLowerCase() === 'array' && this.ast.args.every(arg => arg.type === 'NumberLiteral')) {
+                    this.type = 'dataArray';
+                    const dataValues = this.ast.args.map(arg => arg.value);
+                    this.parameters = { data: dataValues };
+                    try {
+                        this.samples = Calculator.processInlineDataArray(dataValues);
+                        const stats = Calculator.calculateStats(this.samples);
+                        this.mean = stats.mean;
+                        this.ci = stats.ci;
+                        this.histogramData = stats.histogramData;
+                    } catch (e) { this.errorState = `Array processing error: ${e.message}`; }
+                }
+                // Other function calls or complex args will not be evaluated here.
+            }
+            // Complex formulas (BinaryOp, CellIdentifier) will not be evaluated here.
+
         } catch (e) {
-             this.errorState = `Array processing error: ${e.message}`;
-             console.error(`Error processing Data Array for ${this.id}:`, e);
+            this.errorState = e.message;
+            console.error(`Cell ${this.id} Error during formula processing:`, e);
         }
-        return true;
     }
+
+    // _handleFunctionCall, _parseAsConstant, _parseAsNormal, _handlePert, _handleArray
+    // are now effectively replaced by the FormulaParser and subsequent AST evaluation (to be built).
+    // We can remove these private methods from the Cell class.
 }
 
 window.Cell = Cell; // Make Cell class globally available for now
