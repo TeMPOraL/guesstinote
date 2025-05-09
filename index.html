@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guesstinote</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Guesstinote</h1>
+        <div class="document-controls">
+            <label for="docName">Document Name:</label>
+            <input type="text" id="docName" value="My Guesstimate">
+            <button id="newDocBtn">New</button>
+            <button id="saveDocBtn">Save</button>
+            <button id="loadDocBtn">Load</button> <!-- This might be a dropdown or a modal later -->
+        </div>
+        <div class="io-controls">
+            <button id="exportDocBtn">Export (Copy Text)</button>
+            <button id="importDocBtn">Import (Paste Text)</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="editor" contenteditable="true" spellcheck="false">
+            <!-- Initial content, perhaps from tutorial.js, will be loaded here -->
+        </div>
+    </main>
+
+    <footer>
+        <p>Guesstinote - Client-Side Probabilistic Notepad</p>
+        <p>Global Samples: <input type="number" id="globalSamples" value="5000" min="100" step="100"></p>
+    </footer>
+
+    <script src="js/tutorial.js"></script>
+    <script src="js/cell.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/persistence.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
