@@ -309,7 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setDocName: (name) => { docNameInput.value = name; },
         getGlobalSamples: () => parseInt(globalSamplesInput.value, 10) || 5000,
         // refreshEditor will now process the whole document
-        refreshEditor: processFullDocument 
+        refreshEditor: processFullDocument,
+        getCellsCollection: () => CellsCollection // Expose CellsCollection for Evaluator via Cell
     };
 
     init();
