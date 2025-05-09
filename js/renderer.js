@@ -27,7 +27,7 @@ const Renderer = {
         } else if (cellData.mean !== null && cellData.ci && cellData.ci.lower !== null) {
             const valueSpan = document.createElement('span');
             valueSpan.classList.add('value');
-            valueSpan.textContent = `${cellData.mean.toFixed(1)} ${cellData.unit || ''}`;
+            valueSpan.textContent = `${cellData.mean.toFixed(1)}`; // Removed unit
             cellSpan.appendChild(valueSpan);
 
             const ciSpan = document.createElement('span');
@@ -43,7 +43,7 @@ const Renderer = {
         } else if (typeof cellData.value === 'number') { // Constant
             const valueSpan = document.createElement('span');
             valueSpan.classList.add('value');
-            valueSpan.textContent = `${cellData.value} ${cellData.unit || ''}`;
+            valueSpan.textContent = `${cellData.value}`; // Removed unit
             cellSpan.appendChild(valueSpan);
         } else {
             const statusSpan = document.createElement('span');

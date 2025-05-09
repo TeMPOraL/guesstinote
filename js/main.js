@@ -170,12 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const idPart = currentMatch[1]; // Optional ID before |
             const namePart = currentMatch[2]; // Name, or ID if idPart is null
             const formulaPart = currentMatch[3];
-            const unitPart = currentMatch[4]; // Optional unit
+            // const unitPart = currentMatch[4]; // Unit is removed
 
             const cellId = idPart ? idPart.trim() : namePart.trim();
             const displayName = namePart.trim();
             const formula = formulaPart.trim();
-            const unit = unitPart ? unitPart.trim() : null;
+            const unit = null; // Unit is removed
 
             // Mock data for rendering, actual calculation will come later
             // This structure should align with what Renderer.renderCell expects

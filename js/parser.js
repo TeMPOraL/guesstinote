@@ -24,9 +24,8 @@ const Parser = {
     //                                     Group 2: Name (or NameAsIDAndDisplayName)
     // \(([^)]*)\)                       -> Captures Formula part: (Formula)
     //                                     Group 3: Formula
-    // (?:\[([^\]]*)\])?                 -> Captures optional Unit part: [Unit]
-    //                                     Group 4: Unit (optional, just the content)
-    cellDefinitionRegex: /\[(?:([^\]|]+)\|)?([^\]]+)\]\(([^)]*)\)(?:\[([^\]]*)\])?/g,
+    // Unit part is now removed.
+    cellDefinitionRegex: /\[(?:([^\]|]+)\|)?([^\]]+)\]\(([^)]*)\)/g,
 
     // Regex for `[#ID|DisplayName]` or `[#ID]`
     // \[\#(?:([^\]|]+)\|)?([^\]]+)\]      -> Captures reference: [#ID|Name] or [#ID]
@@ -55,7 +54,7 @@ const Parser = {
             const id = match[1]; // Might be undefined
             const nameOrIdName = match[2];
             const formula = match[3];
-            const unit = match[4]; // Might be undefined
+            // const unit = match[4]; // Unit is removed
 
             const cellId = id || nameOrIdName;
             const displayName = nameOrIdName;
@@ -65,7 +64,7 @@ const Parser = {
                 id: cellId.trim(),
                 displayName: displayName.trim(),
                 formula: formula.trim(),
-                unit: unit ? unit.trim() : null,
+                unit: null, // Unit is removed
                 rawText: fullMatch
             });
         }
