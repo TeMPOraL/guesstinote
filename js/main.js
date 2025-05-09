@@ -22,10 +22,88 @@ document.addEventListener('DOMContentLoaded', () => {
         handleContentChange();
     }
 
+    function unprettifyCell(cellElement) {
+        if (!cellElement || !cellElement.classList.contains('guesstimate-cell')) return;
+
+        const rawText = cellElement.dataset.rawText;
+        if (typeof rawText !== 'string') return;
+
+        const textNode = document.createTextNode(rawText);
+        
+        // Ensure the editor is focused before manipulating selection
+        editor.focus(); 
+        const selection = window.getSelection();
+        if (!selection) return;
+
+        // Try to place the cellElement's parent in the current selection's focusNode context
+        // This helps if the cellElement was not directly in a text flow that had focus
+        let parent = cellElement.parentNode;
+        if (!parent) return;
+
+        parent.replaceChild(textNode, cellElement);
+
+        // Set cursor at the end of the un-prettified text
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        range.collapse(false); // false means collapse to the end
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        console.log(`Un-prettified cell, raw text: "${rawText}"`);
+    }
+
     function setupEventListeners() {
         if (editor) {
-            // For a contenteditable div, 'input' event is generally best
             editor.addEventListener('input', handleContentChange);
+
+            editor.addEventListener('click', function(event) {
+                const targetCell = event.target.closest('.guesstimate-cell');
+                if (targetCell) {
+                    // We don't want to un-prettify if the click is on an interactive element within the cell later
+                    // For now, any click on the cell un-prettifies it.
+                    console.log('Clicked on a cell, attempting to un-prettify.');
+                    unprettifyCell(targetCell);
+                    event.preventDefault(); // Prevent any other default click behavior on the cell
+                }
+            });
+
+            editor.addEventListener('keydown', function(event) {
+                if (event.key === 'Backspace') {
+                    const selection = window.getSelection();
+                    if (!selection || !selection.isCollapsed || selection.rangeCount === 0) return;
+
+                    const range = selection.getRangeAt(0);
+                    let potentialCellToUnprettify = null;
+
+                    // Case 1: Cursor is at the beginning of a text node, cell is previous sibling
+                    // e.g., <span class="guesstimate-cell">...</span>|textnode
+                    if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+                        const prevSibling = range.startContainer.previousSibling;
+                        if (prevSibling && prevSibling.nodeType === Node.ELEMENT_NODE && prevSibling.classList.contains('guesstimate-cell')) {
+                            potentialCellToUnprettify = prevSibling;
+                        }
+                    } 
+                    // Case 2: Cursor is directly after a cell span within the editor container
+                    // e.g., <p><span class="guesstimate-cell">...</span>|</p> or <div id="editor"><span class="guesstimate-cell">...</span>|</div>
+                    // The range.startContainer would be the parent element (e.g. P or DIV#editor)
+                    // and range.startOffset would indicate the position *after* the cell node.
+                    else if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
+                         // Check if the node immediately before the cursor is a cell
+                        if (range.startOffset > 0) {
+                            const nodeBeforeCursor = range.startContainer.childNodes[range.startOffset - 1];
+                            if (nodeBeforeCursor && nodeBeforeCursor.nodeType === Node.ELEMENT_NODE && nodeBeforeCursor.classList.contains('guesstimate-cell')) {
+                                potentialCellToUnprettify = nodeBeforeCursor;
+                            }
+                        }
+                    }
+
+                    if (potentialCellToUnprettify) {
+                        console.log('Backspace at cell boundary, attempting to un-prettify.');
+                        event.preventDefault();
+                        unprettifyCell(potentialCellToUnprettify);
+                    }
+                }
+            });
         }
 
         if (newDocBtn) {
