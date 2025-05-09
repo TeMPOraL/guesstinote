@@ -51,8 +51,8 @@ class Cell {
         // TODO: Implement formula evaluation (e.g., CellA + CellB)
         this.type = 'formula';
         this.parameters = {}; // No specific parameters for a generic formula yet
-        this.errorState = 'error'; // Mark as error until formula evaluation is implemented
-        console.log(`Cell ${this.id} marked as complex formula (not yet supported): "${formula}"`);
+        this.errorState = `Complex formula (not yet supported): "${formula}"`;
+        console.log(`Cell ${this.id} ${this.errorState}`);
     }
 
     _parseAsConstant(formula) {
@@ -85,7 +85,7 @@ class Cell {
                 this.histogramData = stats.histogramData;
                 console.log(`Cell ${this.id} parsed as normal:`, this.parameters, "Mean:", this.mean);
             } catch (e) {
-                this.errorState = 'error';
+                this.errorState = `Normal dist calc error: ${e.message}`;
                 console.error(`Error calculating normal distribution for ${this.id}:`, e);
             }
             return true;
@@ -101,8 +101,8 @@ class Cell {
             const args = argsString.split(',').map(arg => parseFloat(arg.trim()));
 
             if (args.some(isNaN)) {
-                this.errorState = 'error';
-                console.error(`Cell ${this.id} PERT: Invalid arguments (not all numbers) "${argsString}"`);
+                this.errorState = `PERT: Invalid arguments (not all numbers) in "${argsString}"`;
+                console.error(`Cell ${this.id} ${this.errorState}`);
                 return true; // Matched PERT but failed to parse args
             }
 
@@ -126,14 +126,14 @@ class Cell {
                     lambda = args[3];
                     break;
                 default:
-                    this.errorState = 'error';
-                    console.error(`Cell ${this.id} PERT: Incorrect number of arguments (${args.length}) "${argsString}"`);
+                    this.errorState = `PERT: Incorrect number of arguments (${args.length}) in "${argsString}"`;
+                    console.error(`Cell ${this.id} ${this.errorState}`);
                     return true; // Matched PERT but failed due to arg count
             }
             
             if (!(min <= likely && likely <= max)) {
-                 this.errorState = 'error';
-                 console.error(`Cell ${this.id} PERT: Invalid parameters (min <= likely <= max not met). min=${min}, likely=${likely}, max=${max}`);
+                 this.errorState = `PERT: Invalid parameters (min <= likely <= max not met). min=${min}, likely=${likely}, max=${max}`;
+                 console.error(`Cell ${this.id} ${this.errorState}`);
                  return true; // Matched PERT but failed validation
             }
 
@@ -158,7 +158,7 @@ class Cell {
                 this.histogramData = stats.histogramData;
                 console.log(`Cell ${this.id} parsed as PERT:`, this.parameters, "Mean:", this.mean);
             } catch (e) {
-                this.errorState = 'error';
+                this.errorState = `PERT calc error: ${e.message}`;
                 console.error(`Error calculating PERT distribution for ${this.id}:`, e);
             }
             return true;
@@ -173,8 +173,8 @@ class Cell {
             try {
                 const dataValues = arrayMatch[1].split(',').map(s => parseFloat(s.trim()));
                 if (dataValues.some(isNaN)) {
-                    this.errorState = 'error';
-                    console.error(`Cell ${this.id} Data Array: Invalid numbers in array "${arrayMatch[1]}"`);
+                    this.errorState = `Data Array: Invalid numbers in "${arrayMatch[1]}"`;
+                    console.error(`Cell ${this.id} ${this.errorState}`);
                     return true; // Matched Data Array but failed to parse values
                 }
                 this.parameters = { data: dataValues };
@@ -185,7 +185,7 @@ class Cell {
                 this.histogramData = stats.histogramData;
                 console.log(`Cell ${this.id} parsed as Data Array:`, dataValues, "Mean:", this.mean);
             } catch (e) {
-                 this.errorState = 'error';
+                 this.errorState = `Data Array processing error: ${e.message}`;
                  console.error(`Error processing Data Array for ${this.id}:`, e);
             }
             return true;

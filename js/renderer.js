@@ -18,12 +18,18 @@ const Renderer = {
         nameSpan.textContent = cellData.displayName;
         cellSpan.appendChild(nameSpan);
 
-        if (cellData.errorState === 'error') {
-            cellSpan.classList.add('cell-error');
-            nameSpan.textContent += ' (Error!)';
-        } else if (cellData.errorState === 'dependent-error') {
+        if (cellData.errorState) { // If errorState has a message string
+            cellSpan.classList.add('cell-error'); // Apply error styling
+            const errorMsgSpan = document.createElement('span');
+            errorMsgSpan.classList.add('error-message');
+            errorMsgSpan.style.marginLeft = '5px';
+            errorMsgSpan.style.color = '#d8000c'; // Match .cell-error color
+            errorMsgSpan.textContent = ` (Error: ${cellData.errorState})`;
+            nameSpan.appendChild(errorMsgSpan); // Append error message to nameSpan or cellSpan
+            // No further rendering of value/CI if there's an error
+        } else if (cellData.errorState === 'dependent-error') { // This case might need review if errorState is now always a string or null
             cellSpan.classList.add('cell-dependent-error');
-            nameSpan.textContent += ' (Dep. Error)';
+            nameSpan.textContent += ' (Dep. Error)'; // Keep this for now, though direct error messages are prioritized
         } else if (cellData.mean !== null && cellData.ci && cellData.ci.lower !== null) {
             const valueSpan = document.createElement('span');
             valueSpan.classList.add('value');
