@@ -123,6 +123,10 @@ Cell.AST_HANDLERS = {
     },
     'FunctionCall': function(cell, astNode) {
         const functionName = astNode.name.toLowerCase();
+        
+        // For now, assume all arguments to these specific functions must be numbers.
+        // This check can be moved into individual function handlers if some functions
+        // accept non-numeric AST nodes (e.g., cell identifiers) later.
         const allArgsAreNumbers = astNode.args.every(arg => arg.type === 'NumberLiteral');
 
         if (!allArgsAreNumbers) {
@@ -131,50 +135,76 @@ Cell.AST_HANDLERS = {
         }
         const argValues = astNode.args.map(arg => arg.value);
 
-        if (functionName === 'pert') {
-            cell.type = 'pert';
-            let min, likely, max, lambda = 4;
-            if (argValues.length === 2) {
-                min = argValues[0]; max = argValues[1]; likely = (min + max) / 2;
-            } else if (argValues.length === 3) {
-                min = argValues[0]; likely = argValues[1]; max = argValues[2];
-            } else if (argValues.length === 4) {
-                min = argValues[0]; likely = argValues[1]; max = argValues[2]; lambda = argValues[3];
-            } else {
-                cell.errorState = `PERT: Incorrect number of arguments (${argValues.length}).`;
-                return;
-            }
-            if (!(min <= likely && likely <= max)) {
-                cell.errorState = `PERT: Invalid parameters (min <= likely <= max not met).`;
-                return;
-            }
-            if (min === max) { // Treat as constant
-                Cell.AST_HANDLERS.NumberLiteral(cell, { type: 'NumberLiteral', value: min }); // Reuse constant handler
-                return;
-            }
-            cell.parameters = { min, likely, max, lambda };
-            try {
-                cell.samples = Calculator.generatePertSamples(min, likely, max, lambda);
-                const stats = Calculator.calculateStats(cell.samples);
-                cell.mean = stats.mean;
-                cell.ci = stats.ci;
-                cell.histogramData = stats.histogramData;
-            } catch (e) { cell.errorState = `PERT calc error: ${e.message}`; }
-
-        } else if (functionName === 'array') {
-            cell.type = 'dataArray';
-            cell.parameters = { data: argValues };
-            try {
-                cell.samples = Calculator.processInlineDataArray(argValues);
-                const stats = Calculator.calculateStats(cell.samples);
-                cell.mean = stats.mean;
-                cell.ci = stats.ci;
-                cell.histogramData = stats.histogramData;
-            } catch (e) { cell.errorState = `Array processing error: ${e.message}`; }
+        const funcImplementation = Cell.FUNCTION_IMPLEMENTATIONS[functionName];
+        if (funcImplementation) {
+            funcImplementation(cell, astNode, argValues);
         } else {
             cell.errorState = `Unknown function for temporary evaluation: '${astNode.name}'.`;
         }
     }
+};
+
+// Static map for specific function implementations (used by FunctionCall AST_HANDLER)
+Cell.FUNCTION_IMPLEMENTATIONS = {
+    'pert': function(cell, astNode, argValues) {
+        cell.type = 'pert';
+        let min, likely, max, lambda = 4;
+        if (argValues.length === 2) {
+            min = argValues[0]; max = argValues[1]; likely = (min + max) / 2;
+        } else if (argValues.length === 3) {
+            min = argValues[0]; likely = argValues[1]; max = argValues[2];
+        } else if (argValues.length === 4) {
+            min = argValues[0]; likely = argValues[1]; max = argValues[2]; lambda = argValues[3];
+        } else {
+            cell.errorState = `PERT: Incorrect number of arguments (${argValues.length}).`;
+            return;
+        }
+        if (!(min <= likely && likely <= max)) {
+            cell.errorState = `PERT: Invalid parameters (min <= likely <= max not met).`;
+            return;
+        }
+        if (min === max) { // Treat as constant
+            // Reuse constant handler by directly setting cell properties
+            cell.type = 'constant';
+            cell.value = min;
+            cell.mean = min;
+            cell.samples = [min];
+            cell.ci = { lower: min, upper: min };
+            cell.histogramData = Calculator.calculateStats(cell.samples).histogramData;
+            return;
+        }
+        cell.parameters = { min, likely, max, lambda };
+        try {
+            cell.samples = Calculator.generatePertSamples(min, likely, max, lambda);
+            const stats = Calculator.calculateStats(cell.samples);
+            cell.mean = stats.mean;
+            cell.ci = stats.ci;
+            cell.histogramData = stats.histogramData;
+        } catch (e) { cell.errorState = `PERT calc error: ${e.message}`; }
+    },
+    'array': function(cell, astNode, argValues) {
+        cell.type = 'dataArray';
+        cell.parameters = { data: argValues };
+        try {
+            // Handle empty array case explicitly if argValues is empty
+            if (argValues.length === 0) {
+                 cell.samples = [];
+                 cell.mean = null; 
+                 cell.ci = {lower: null, upper: null};
+                 cell.histogramData = [];
+                 console.log(`Cell ${cell.id} parsed as empty Data Array.`);
+                 return;
+            }
+            cell.samples = Calculator.processInlineDataArray(argValues);
+            const stats = Calculator.calculateStats(cell.samples);
+            cell.mean = stats.mean;
+            cell.ci = stats.ci;
+            cell.histogramData = stats.histogramData;
+        } catch (e) { cell.errorState = `Array processing error: ${e.message}`; }
+    }
+    // Add more function implementations here:
+    // 'normal': function(cell, astNode, argValues) { ... },
+    // 'mean': function(cell, astNode, argValues) { ... },
 };
 
 window.Cell = Cell; // Make Cell class globally available for now
