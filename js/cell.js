@@ -191,7 +191,8 @@ class Cell {
         // This return false would only be hit if PERT wasn't matched by the main dispatcher,
         // which shouldn't happen if _handlePert is called.
         // The true returns above indicate that the PERT structure was handled (even if it resulted in an error).
-        return false; 
+        // Thus, this line is unreachable if all paths correctly return true.
+        // return false; // Removed dead code.
     }
 
     _handleArray(argumentsString) {
