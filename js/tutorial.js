@@ -10,32 +10,32 @@ window.Tutorial = { // Explicitly attach to window
 <p>This is a simple notepad for probabilistic estimates. You can write text and embed special "cells" for calculations.</p>
 
 <h2>Basic Cells</h2>
-<p>Define a cell like this: <code>[CellName](Formula)</code></p>
+<p>Define a cell like this: <code>[CellName][Formula]</code></p>
 <ul>
-    <li>A constant: <code>[FixedCost](1000)</code> becomes [FixedCost](1000)</li>
-    <li>A range (90% confidence interval, normal distribution): <code>[UserGrowth](10 to 50)</code> becomes [UserGrowth](10 to 50)</li>
+    <li>A constant: <code>[FixedCost][1000]</code> becomes [FixedCost][1000]</li>
+    <li>A range (90% confidence interval, normal distribution): <code>[UserGrowth][10 to 50]</code> becomes [UserGrowth][10 to 50]</li>
 </ul>
 
 <h2>PERT Distribution</h2>
 <p>For project estimates, use PERT: <code>PERT(min, likely, max, lambda?)</code>. Lambda defaults to 4.</p>
 <ul>
-    <li><code>[BackendTask](PERT(2,5,10))</code> becomes [BackendTask](PERT(2,5,10))</li>
-    <li><code>[FrontendTask](PERT(3,6,12,6))</code> becomes [FrontendTask](PERT(3,6,12,6))</li>
-    <li><code>[QuickTask](PERT(1,3))</code> becomes [QuickTask](PERT(1,3)) (likely is (min+max)/2)</li>
+    <li><code>[BackendTask][PERT(2,5,10)]</code> becomes [BackendTask][PERT(2,5,10)]</li>
+    <li><code>[FrontendTask][PERT(3,6,12,6)]</code> becomes [FrontendTask][PERT(3,6,12,6)]</li>
+    <li><code>[QuickTask][PERT(1,3)]</code> becomes [QuickTask][PERT(1,3)] (likely is (min+max)/2)</li>
 </ul>
 
 <h2>Formulas</h2>
 <p>Cells can reference each other by ID. If no ID is specified with <code>|</code>, the display name is the ID.</p>
-<p>Example: <code>[TotalTime|Total Project Time](BackendTask + FrontendTask + QuickTask)</code></p>
-<p>This will result in: [TotalTime|Total Project Time](BackendTask + FrontendTask + QuickTask)</p>
+<p>Example: <code>[TotalTime|Total Project Time][BackendTask + FrontendTask + QuickTask]</code></p>
+<p>This will result in: [TotalTime|Total Project Time][BackendTask + FrontendTask + QuickTask]</p>
 <p><em>Note: Ensure referenced cell IDs like 'BackendTask', 'FrontendTask', 'QuickTask' are defined above. The parser is simple for now.</em></p>
 
 <h2>Cell IDs and Display Names</h2>
 <ul>
-    <li><code>[ID|Display Name](Formula)</code>: e.g., <code>[BC|BaseCost](50)</code> results in [BC|BaseCost](50)</li>
-    <li><code>[NameIsID](Formula)</code>: e.g., <code>[TaxRate](0.2)</code> results in [TaxRate](0.2)</li>
+    <li><code>[ID|Display Name][Formula]</code>: e.g., <code>[BC|BaseCost][50]</code> results in [BC|BaseCost][50]</li>
+    <li><code>[NameIsID][Formula]</code>: e.g., <code>[TaxRate][0.2]</code> results in [TaxRate][0.2]</li>
 </ul>
-<p>Referencing in formulas uses the ID: <code>[TotalWithTax](BC * (1 + TaxRate))</code> becomes [TotalWithTax](BC * (1 + TaxRate))</p>
+<p>Referencing in formulas uses the ID: <code>[TotalWithTax][BC * (1 + TaxRate)]</code> becomes [TotalWithTax][BC * (1 + TaxRate)]</p>
 
 <h2>Displaying Existing Cells</h2>
 <p>Reference a cell for display: <code>[#ID]</code> or <code>[#ID|Custom Text]</code></p>
@@ -45,7 +45,8 @@ window.Tutorial = { // Explicitly attach to window
 </ul>
 
 <h2>Inline Data Array</h2>
-<p>Provide an array of numbers: <code>[MyData]([10,12,11,15,13,14,12,16])</code> becomes [MyData]([10,12,11,15,13,14,12,16])</p>
+<p>Provide an array of numbers: <code>[MyData][[10,12,11,15,13,14,12,16]]</code> becomes [MyData][[10,12,11,15,13,14,12,16]]</p>
+<p><em>Note: For inline data arrays like <code>[1,2,3]</code>, the formula part itself now contains square brackets. This should work with the new parser as <code>[^\]]*</code> will capture them.</em></p>
 
 <p>Start editing or create a <button onclick="Persistence.handleNewDocument()">New Document</button>.</p>
 `;

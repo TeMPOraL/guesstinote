@@ -88,12 +88,12 @@ To create a client-side, web-based notepad application that seamlessly integrate
     *   Basic tables
     *   Code blocks
 *   **FR3.2.3: Cell Definition Syntax:**
-    *   `[ID|Display Name](Formula)` (e.g., `[WBK|Widget Backend](PERT(2,5,10))`)
+    *   `[ID|Display Name][Formula]` (e.g., `[WBK|Widget Backend][PERT(2,5,10)]`)
         *   `ID`: The unique identifier for the Cell, used in formulas.
         *   `Display Name`: The text shown when rendering the Cell.
-        *   `Formula`: The expression defining the Cell's value.
+        *   `Formula`: The expression defining the Cell's value. (Delimited by `[` and `]`)
         *   `Unit`: (Removed for now).
-    *   `[NameAsIDAndDisplayName](Formula)` (e.g., `[Widget Frontend](2 to 5)`)
+    *   `[NameAsIDAndDisplayName][Formula]` (e.g., `[Widget Frontend][2 to 5]`)
         *   `NameAsIDAndDisplayName`: Serves as both the Cell ID and its initial Display Name.
 *   **FR3.2.4: Cell Reference Syntax (for display):**
     *   `[#ID]` : Displays the Cell with ID `ID` using its defined `Display Name`.
@@ -102,23 +102,24 @@ To create a client-side, web-based notepad application that seamlessly integrate
     *   A mechanism (e.g., a specific Cell reference type or a property of a Cell definition) should allow a Cell to be rendered as its own paragraph, with a larger, full-width histogram.
 
 ### 3.3. Cell Definition & Input Types
-*   **FR3.3.1: Cell IDs in Formulas:** Formulas will reference other Cells by their `ID` (e.g., `[TotalCost](WBK + Widget_Frontend * InflationRate)`).
+*   **FR3.3.1: Cell IDs in Formulas:** Formulas will reference other Cells by their `ID` (e.g., `[TotalCost][WBK + Widget_Frontend * InflationRate]` where `TotalCost` is the cell being defined, and `WBK` etc. are IDs used in its formula).
 *   **FR3.3.2: Constant Input:**
-    *   Syntax: `[MyConstantID|My Constant](42)` or `[MyConstantID](42)`
+    *   Syntax: `[MyConstantID|My Constant][42]` or `[MyConstantID][42]`
     *   Represents a single, fixed numerical value.
 *   **FR3.3.3: PERT Distribution Input:**
     *   `PERT(min, most_likely, max, lambda)`: Modified PERT with `min`, `most_likely`, `max` values, and `lambda` shape parameter.
     *   `PERT(min, most_likely, max)`: Lambda defaults to 4.
     *   `PERT(min, max)`: `most_likely` defaults to `(min + max) / 2`, lambda defaults to 4.
+    *   The formula for a PERT cell would look like: `[MyTask][PERT(1,2,3)]`.
     *   Arguments to PERT (and other functions) can be constants or other Cell IDs. If Cell IDs are distributions, the behavior needs to be well-defined (e.g., sample from the argument distributions to generate parameters for each main simulation sample, or take the mean of argument distributions). *Initial approach: for function parameters that are distributions, use their mean value.*
 *   **FR3.3.4: Normal Distribution (from 90% CI) Input:**
-    *   Syntax: `[EstimateB_ID](value1 to value2)` (e.g., `2 to 5`)
+    *   Syntax: `[EstimateB_ID][value1 to value2]` (e.g., `[MyEstimate][2 to 5]`)
     *   Represents a normal distribution where `value1` and `value2` form a 90% confidence interval, symmetric around the mean. Mean = `(value1 + value2) / 2`. Std.dev. ≈ `(value2 - mean) / 1.645`.
 *   **FR3.3.5: Inline Data Array Input:**
-    *   Syntax: `[DataSetC_ID]([d1, d2, ..., dn])` (e.g., `[10, 12, 11, 15, 13]`)
-    *   Represents a distribution defined by an explicit array of numerical samples. Upsampled/downsampled to global sample count. Syntax should be easily changeable.
+    *   Syntax: `[DataSetC_ID][[d1, d2, ..., dn]]` (e.g., `[MyData][[10,12,11,15,13]]`)
+    *   Represents a distribution defined by an explicit array of numerical samples. Upsampled/downsampled to global sample count. Syntax should be easily changeable. The inner `[]` are part of the formula content.
 *   **FR3.3.6: Formula Input (Referencing Other Cells):**
-    *   Syntax: `[Total_ID|Total Cost](CostA_ID + CostB_ID * Factor_ID)`
+    *   Syntax: `[Total_ID|Total Cost][CostA_ID + CostB_ID * Factor_ID]`
     *   Allows basic arithmetic operations using constants and references to other Cell IDs.
 
 ### 3.4. Cell Computation & Reactivity
@@ -131,7 +132,7 @@ To create a client-side, web-based notepad application that seamlessly integrate
     *   If a Cell's `ID` is changed in its definition, existing references in other formulas to the *old ID* will break (they are not automatically updated).
 
 ### 3.5. Cell Display & Interaction
-*   **FR3.5.1:** When a Cell definition (e.g., `[WBK|Widget Backend](PERT(2,5,10))`) is processed:
+*   **FR3.5.1:** When a Cell definition (e.g., `[WBK|Widget Backend][PERT(2,5,10)]`) is processed:
     *   It should be rendered primarily as its `Display Name` (e.g., "Widget Backend").
     *   Annotations (mean, 90% CI) and a small histogram should be displayed. Unit is removed.
 *   **FR3.5.2:** Constant Cells should be rendered with their numerical value. Unit is removed.
