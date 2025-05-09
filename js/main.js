@@ -13,6 +13,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const CellsCollection = {}; // Global store for Cell objects
 
+    function _createOrUpdateCell(id, displayName, formula, rawText) {
+        let cell = CellsCollection[id];
+        if (!cell) {
+            cell = new Cell(id, displayName, formula, rawText);
+            CellsCollection[id] = cell;
+        } else {
+            // Cell exists, update its formula and rawText, then reprocess
+            cell.displayName = displayName; // Display name might change if ID part was absent
+            cell.updateFormula(formula, rawText);
+        }
+        return cell;
+    }
+
+    function _replaceTextRangeWithNode(textNode, startIndex, length, replacementNode) {
+        const range = document.createRange();
+        range.setStart(textNode, startIndex);
+        range.setEnd(textNode, startIndex + length);
+        range.deleteContents();
+        range.insertNode(replacementNode);
+        return replacementNode; // Return the inserted node for convenience (e.g., cursor placement)
+    }
+
     // Initialize the application
     function init() {
         console.log('Initializing Guesstinote...');
@@ -78,23 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const displayName = namePart.trim();
                 const formula = formulaPart.trim();
 
-                let cell = CellsCollection[cellId];
-                if (!cell) {
-                    cell = new Cell(cellId, displayName, formula, rawText);
-                    CellsCollection[cellId] = cell;
-                } else {
-                    cell.displayName = displayName;
-                    cell.updateFormula(formula, rawText);
-                }
-
+                const cell = _createOrUpdateCell(cellId, displayName, formula, rawText);
                 const cellSpan = Renderer.renderCell(cell);
-                
-                // Create a range within the textNode to replace
-                const range = document.createRange();
-                range.setStart(textNode, currentMatch.index);
-                range.setEnd(textNode, currentMatch.index + rawText.length);
-                range.deleteContents();
-                range.insertNode(cellSpan);
+                _replaceTextRangeWithNode(textNode, currentMatch.index, rawText.length, cellSpan);
                 modified = true;
             }
         }
@@ -210,7 +218,13 @@ document.addEventListener('DOMContentLoaded', () => {
             importDocBtn.addEventListener('click', Persistence.handleImportDocument);
         }
         if (globalSamplesInput) {
-            globalSamplesInput.addEventListener('change', handleContentChange); // Recalculate on sample change
+            // When global samples change, all cells need to be reprocessed.
+            globalSamplesInput.addEventListener('change', () => {
+                console.log('Global samples changed, reprocessing full document.');
+                if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
+                    window.Guesstinote.refreshEditor();
+                }
+            });
         }
         if (docNameInput) {
             // Potentially save document name on change, or on explicit save
@@ -262,33 +276,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const cellId = idPart ? idPart.trim() : namePart.trim();
             const displayName = namePart.trim();
             const formula = formulaPart.trim();
-            // const unit = null; // Unit is removed
 
-            let cell = CellsCollection[cellId];
-            if (!cell) {
-                cell = new Cell(cellId, displayName, formula, rawText);
-                CellsCollection[cellId] = cell;
-            } else {
-                // Cell exists, update its formula and rawText, then reprocess
-                cell.displayName = displayName; // Display name might change if ID part was absent
-                cell.updateFormula(formula, rawText);
-            }
-            
-            // The cellData for the renderer is now the cell object itself,
-            // which contains calculated mean, ci, value, errorState, etc.
-            const cellDataForRenderer = cell; 
-            
-            // Create a range that covers exactly the matched raw text in the current text node
-            const cellRange = document.createRange();
-            cellRange.setStart(currentNode, currentMatch.index);
-            cellRange.setEnd(currentNode, currentMatch.index + rawText.length);
-
-            // Create the "prettified" cell span using data from the Cell object
-            const cellSpan = Renderer.renderCell(cellDataForRenderer);
-
-            // Replace the raw text with the prettified span
-            cellRange.deleteContents();
-            cellRange.insertNode(cellSpan);
+            const cell = _createOrUpdateCell(cellId, displayName, formula, rawText);
+            const cellSpan = _replaceTextRangeWithNode(
+                currentNode, 
+                currentMatch.index, 
+                rawText.length, 
+                Renderer.renderCell(cell)
+            );
 
             // Attempt to move the cursor after the inserted span
             // This is important for a smooth typing experience.
