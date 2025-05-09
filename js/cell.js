@@ -43,16 +43,44 @@ class Cell {
 
         if (this._parseAsConstant(formula)) return;
         if (this._parseAsNormal(formula)) return;
-        if (this._parseAsPert(formula)) return;
-        if (this._parseAsDataArray(formula)) return;
+        
+        // Try to parse as a generic function call: funcName(args)
+        const functionCallMatch = formula.match(/^([a-zA-Z_]\w*)\s*\((.*)\)\s*$/);
+        if (functionCallMatch) {
+            const functionName = functionCallMatch[1].toLowerCase();
+            const argumentsString = functionCallMatch[2];
+            if (this._handleFunctionCall(functionName, argumentsString)) {
+                return;
+            }
+            // If _handleFunctionCall returns false, it means the function name was not recognized
+            // or there was an issue handled within it that should fall through.
+            // However, _handleFunctionCall should set errorState if it recognizes the function but fails.
+            // If it returns false, it implies the function name itself is unknown.
+            if (!this.errorState) { // Only set unknown function error if not already set by handler
+                 this.errorState = `Unknown function: "${functionCallMatch[1]}"`;
+                 console.error(`Cell ${this.id} ${this.errorState}`);
+            }
+            return;
+        }
 
         // If none of the above, it's a complex formula (or an error)
-        // For now, we just mark it and don't calculate.
-        // TODO: Implement formula evaluation (e.g., CellA + CellB)
+        // TODO: Implement binary operator parsing here (e.g., CellA + CellB)
         this.type = 'formula';
-        this.parameters = {}; // No specific parameters for a generic formula yet
-        this.errorState = `Complex formula (not yet supported): "${formula}"`;
+        this.parameters = {}; 
+        this.errorState = `Unsupported or invalid formula structure: "${formula}"`;
         console.log(`Cell ${this.id} ${this.errorState}`);
+    }
+
+    _handleFunctionCall(functionName, argumentsString) {
+        switch (functionName) {
+            case 'pert':
+                return this._handlePert(argumentsString);
+            case 'array':
+                return this._handleArray(argumentsString);
+            // Add other function handlers here, e.g. 'normal', 'mean'
+            default:
+                return false; // Function name not recognized by this dispatcher
+        }
     }
 
     _parseAsConstant(formula) {
@@ -93,20 +121,17 @@ class Cell {
         return false;
     }
 
-    _parseAsPert(formula) {
-        const pertMatch = formula.match(/^PERT\s*\(([^)]*)\)\s*$/i);
-        if (pertMatch) {
-            this.type = 'pert';
-            const argsString = pertMatch[1];
-            const args = argsString.split(',').map(arg => parseFloat(arg.trim()));
+    _handlePert(argumentsString) {
+        this.type = 'pert';
+        const args = argumentsString.split(',').map(arg => parseFloat(arg.trim()));
 
-            if (args.some(isNaN)) {
-                this.errorState = `PERT: Invalid arguments (not all numbers) in "${argsString}"`;
-                console.error(`Cell ${this.id} ${this.errorState}`);
-                return true; // Matched PERT but failed to parse args
-            }
+        if (args.some(isNaN)) {
+            this.errorState = `PERT: Invalid arguments (not all numbers) in "${argumentsString}"`;
+            console.error(`Cell ${this.id} ${this.errorState}`);
+            return true; 
+        }
 
-            let min, likely, max, lambda = 4; // Default lambda
+        let min, likely, max, lambda = 4; // Default lambda
 
             switch (args.length) {
                 case 2: // PERT(min, max)
@@ -163,34 +188,55 @@ class Cell {
             }
             return true;
         }
-        return false;
+        // This return false would only be hit if PERT wasn't matched by the main dispatcher,
+        // which shouldn't happen if _handlePert is called.
+        // The true returns above indicate that the PERT structure was handled (even if it resulted in an error).
+        return false; 
     }
-    
-    _parseAsDataArray(formula) {
-        const arrayMatch = formula.match(/^\s*\[\s*((?:[-+]?\d+(\.\d+)?\s*,\s*)*[-+]?\d+(\.\d+)?)\s*\]\s*$/);
-        if (arrayMatch && arrayMatch[1]) {
-            this.type = 'dataArray';
-            try {
-                const dataValues = arrayMatch[1].split(',').map(s => parseFloat(s.trim()));
-                if (dataValues.some(isNaN)) {
-                    this.errorState = `Data Array: Invalid numbers in "${arrayMatch[1]}"`;
-                    console.error(`Cell ${this.id} ${this.errorState}`);
-                    return true; // Matched Data Array but failed to parse values
-                }
-                this.parameters = { data: dataValues };
-                this.samples = Calculator.processInlineDataArray(dataValues);
-                const stats = Calculator.calculateStats(this.samples);
-                this.mean = stats.mean;
-                this.ci = stats.ci;
-                this.histogramData = stats.histogramData;
-                console.log(`Cell ${this.id} parsed as Data Array:`, dataValues, "Mean:", this.mean);
-            } catch (e) {
-                 this.errorState = `Data Array processing error: ${e.message}`;
-                 console.error(`Error processing Data Array for ${this.id}:`, e);
-            }
-            return true;
+
+    _handleArray(argumentsString) {
+        this.type = 'dataArray'; // Keep type as 'dataArray' for consistency with Calculator
+        const dataValues = argumentsString.split(',').map(s => parseFloat(s.trim()));
+
+        if (dataValues.some(isNaN)) {
+            this.errorState = `Array: Invalid numbers in "${argumentsString}"`;
+            console.error(`Cell ${this.id} ${this.errorState}`);
+            return true; 
         }
-        return false;
+        
+        if (dataValues.length === 0 && argumentsString.trim() !== "") {
+            // Handles cases like "array()" or "array( )" which might result in empty dataValues
+            // but argsString is not truly empty.
+             this.errorState = `Array: No valid numbers found in "${argumentsString}"`;
+             console.error(`Cell ${this.id} ${this.errorState}`);
+             return true;
+        }
+        // If argumentsString is empty, dataValues will be [NaN] if not handled, or empty if split produces [""] then map to NaN.
+        // Let's allow empty array: array() -> empty samples.
+        if (dataValues.length === 0 || (dataValues.length === 1 && isNaN(dataValues[0]) && argumentsString.trim() === "")) {
+             this.parameters = { data: [] };
+             this.samples = [];
+             this.mean = null; // Or 0, depending on desired behavior for empty array
+             this.ci = {lower: null, upper: null};
+             this.histogramData = [];
+             console.log(`Cell ${this.id} parsed as empty Data Array.`);
+             return true;
+        }
+
+
+        this.parameters = { data: dataValues };
+        try {
+            this.samples = Calculator.processInlineDataArray(dataValues);
+            const stats = Calculator.calculateStats(this.samples);
+            this.mean = stats.mean;
+            this.ci = stats.ci;
+            this.histogramData = stats.histogramData;
+            console.log(`Cell ${this.id} parsed as Data Array:`, dataValues, "Mean:", this.mean);
+        } catch (e) {
+             this.errorState = `Array processing error: ${e.message}`;
+             console.error(`Error processing Data Array for ${this.id}:`, e);
+        }
+        return true;
     }
 }
 

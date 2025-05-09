@@ -116,8 +116,9 @@ To create a client-side, web-based notepad application that seamlessly integrate
     *   Syntax: `[EstimateB_ID][value1 to value2]` (e.g., `[MyEstimate][2 to 5]`)
     *   Represents a normal distribution where `value1` and `value2` form a 90% confidence interval, symmetric around the mean. Mean = `(value1 + value2) / 2`. Std.dev. ≈ `(value2 - mean) / 1.645`.
 *   **FR3.3.5: Inline Data Array Input:**
-    *   Syntax: `[DataSetC_ID][[d1, d2, ..., dn]]` (e.g., `[MyData][[10,12,11,15,13]]`)
-    *   Represents a distribution defined by an explicit array of numerical samples. Upsampled/downsampled to global sample count. Syntax should be easily changeable. The inner `[]` are part of the formula content.
+    *   Syntax: `[DataSetC_ID][array(d1, d2, ..., dn)]` (e.g., `[MyData][array(10,12,11,15,13)]`)
+    *   Represents a distribution defined by an explicit array of numerical samples, passed as arguments to the `array` function.
+    *   Samples are upsampled/downsampled to the global sample count by the `Calculator`.
 *   **FR3.3.6: Formula Input (Referencing Other Cells):**
     *   Syntax: `[Total_ID|Total Cost][CostA_ID + CostB_ID * Factor_ID]`
     *   Allows basic arithmetic operations using constants and references to other Cell IDs.

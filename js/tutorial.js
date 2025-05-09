@@ -45,8 +45,8 @@ window.Tutorial = { // Explicitly attach to window
 </ul>
 
 <h2>Inline Data Array</h2>
-<p>Provide an array of numbers: <code>[MyData][[10,12,11,15,13,14,12,16]]</code> becomes [MyData][[10,12,11,15,13,14,12,16]]</p>
-<p><em>Note: For inline data arrays like <code>[1,2,3]</code>, the formula part itself now contains square brackets. This should work with the new parser as <code>[^\]]*</code> will capture them.</em></p>
+<p>Provide an array of numbers using the <code>array()</code> function: <code>[MyData][array(10,12,11,15,13,14,12,16)]</code> becomes [MyData][array(10,12,11,15,13,14,12,16)]</p>
+<p>An empty array can be defined as <code>[EmptyArr][array()]</code>.</p>
 
 <p>Start editing or create a <button onclick="Persistence.handleNewDocument()">New Document</button>.</p>
 `;
