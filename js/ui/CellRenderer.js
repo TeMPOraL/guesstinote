@@ -2,6 +2,16 @@
 // Delegates histogram rendering to HistogramRenderer.
 
 const CellRenderer = {
+    _createAndAppendSpan: function(parent, className, textContent, options = {}) {
+        const span = document.createElement('span');
+        if (className) span.className = className;
+        if (textContent) span.textContent = textContent;
+        if (options.fontStyle) span.style.fontStyle = options.fontStyle;
+        // Add other common style properties here if needed in the future, e.g., options.color
+        parent.appendChild(span);
+        return span;
+    },
+
     renderCell: function(renderInput) {
         const {
             hostElement, isReference, isFullWidth, cellData,
@@ -57,11 +67,8 @@ const CellRenderer = {
         if (!effectiveCell && isReference) {
             hostElement.classList.add('cell-not-found-indicator');
             displayName = referenceDisplayName || referenceTargetId;
-            const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = displayName;
-            contentWrapper.appendChild(nameSpan);
-            const errorSpan = document.createElement('span'); errorSpan.className = 'error-message';
-            errorSpan.textContent = ` (Error: Target cell '${referenceTargetId}' not found)`;
-            contentWrapper.appendChild(errorSpan);
+            this._createAndAppendSpan(contentWrapper, 'name', displayName);
+            this._createAndAppendSpan(contentWrapper, 'error-message', ` (Error: Target cell '${referenceTargetId}' not found)`);
             shadowRoot.appendChild(contentWrapper);
             return;
         }
@@ -69,27 +76,20 @@ const CellRenderer = {
         if (!effectiveCell && !isReference) {
             hostElement.classList.add('error-state-indicator');
             displayName = cellNameFromHost || cellIdFromHost || "Unknown Cell";
-            const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = displayName;
-            contentWrapper.appendChild(nameSpan);
-            const errorSpan = document.createElement('span'); errorSpan.className = 'error-message';
-            errorSpan.textContent = ` (Error: Cell data unavailable. Formula: ${cellFormulaFromHost || 'N/A'})`;
-            contentWrapper.appendChild(errorSpan);
+            this._createAndAppendSpan(contentWrapper, 'name', displayName);
+            this._createAndAppendSpan(contentWrapper, 'error-message', ` (Error: Cell data unavailable. Formula: ${cellFormulaFromHost || 'N/A'})`);
             shadowRoot.appendChild(contentWrapper);
             return;
         }
         
         displayName = isReference ? (referenceDisplayName || effectiveCell.displayName) : effectiveCell.displayName;
         
-        const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = displayName;
-        contentWrapper.appendChild(nameSpan);
+        this._createAndAppendSpan(contentWrapper, 'name', displayName);
 
         // Part 2: Display Error Message (if any)
         if (effectiveCell.errorState) {
             hostElement.classList.add(effectiveCell.isDependencyError ? 'dependency-error-indicator' : 'error-state-indicator');
-            const errorSpan = document.createElement('span');
-            errorSpan.className = 'error-message';
-            errorSpan.textContent = ` (Error: ${effectiveCell.errorState}${effectiveCell.isDependencyError ? ' - from dependency' : ''})`;
-            contentWrapper.appendChild(errorSpan);
+            this._createAndAppendSpan(contentWrapper, 'error-message', ` (Error: ${effectiveCell.errorState}${effectiveCell.isDependencyError ? ' - from dependency' : ''})`);
         }
 
         // Part 3: Display Value, CI, Histogram
@@ -97,47 +97,32 @@ const CellRenderer = {
         if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
             if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant') {
                 if (typeof effectiveCell.value === 'number') {
-                    const valueSpan = document.createElement('span'); valueSpan.className = 'value';
-                    valueSpan.textContent = `${parseFloat(effectiveCell.value.toFixed(2))}`;
-                    contentWrapper.appendChild(valueSpan);
+                    this._createAndAppendSpan(contentWrapper, 'value', `${parseFloat(effectiveCell.value.toFixed(2))}`);
                 } else if (!effectiveCell.errorState) { // Constant, but value not ready (e.g. still processing)
-                    const statusSpan = document.createElement('span'); statusSpan.className = 'value';
-                    statusSpan.textContent = ' (Processing...)'; statusSpan.style.fontStyle = 'italic';
-                    contentWrapper.appendChild(statusSpan);
+                    this._createAndAppendSpan(contentWrapper, 'value', ' (Processing...)', { fontStyle: 'italic' });
                 }
             } else if (effectiveCell.type === 'dataArray' && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0 && !effectiveCell.errorState) {
                 // This case is for explicitly empty arrays, e.g. formula="array()"
-                const valueSpan = document.createElement('span'); valueSpan.className = 'value';
-                valueSpan.textContent = ' []'; valueSpan.style.fontStyle = 'italic';
-                contentWrapper.appendChild(valueSpan);
+                this._createAndAppendSpan(contentWrapper, 'value', ' []', { fontStyle: 'italic' });
             } else if (effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number' && typeof effectiveCell.ci.upper === 'number') {
                 // This block is for distributions (PERT, Normal, non-empty DataArray) with calculated stats
-                const valueSpan = document.createElement('span'); valueSpan.className = 'value';
-                valueSpan.textContent = `${effectiveCell.mean.toFixed(1)}`;
-                contentWrapper.appendChild(valueSpan);
-
-                const ciSpan = document.createElement('span'); ciSpan.className = 'ci';
-                ciSpan.textContent = `(${effectiveCell.ci.lower.toFixed(1)} to ${effectiveCell.ci.upper.toFixed(1)})`;
-                contentWrapper.appendChild(ciSpan);
+                this._createAndAppendSpan(contentWrapper, 'value', `${effectiveCell.mean.toFixed(1)}`);
+                this._createAndAppendSpan(contentWrapper, 'ci', `(${effectiveCell.ci.lower.toFixed(1)} to ${effectiveCell.ci.upper.toFixed(1)})`);
 
                 // Delegate to HistogramRenderer
                 if (effectiveCell.samples && effectiveCell.samples.length > 0 && typeof HistogramRenderer !== 'undefined') {
                     const histogramElement = HistogramRenderer.renderHistogramDisplay(effectiveCell.samples, isFullWidth);
-                    contentWrapper.appendChild(histogramElement);
+                    contentWrapper.appendChild(histogramElement); // Histogram is more complex than a simple span
                 }
             } else if (!effectiveCell.errorState && effectiveCell.id) { 
                 // Fallback if no error, but not enough data for other displays (e.g., still calculating)
-                const statusSpan = document.createElement('span'); statusSpan.className = 'value';
-                statusSpan.textContent = ' (Calculating...)'; statusSpan.style.fontStyle = 'italic';
-                contentWrapper.appendChild(statusSpan);
+                this._createAndAppendSpan(contentWrapper, 'value', ' (Calculating...)', { fontStyle: 'italic' });
             }
         }
         
         // Part 4: Display Formula (for g-cell definitions)
         if (!isReference && effectiveCell.rawFormula) {
-            const formulaSpan = document.createElement('span'); formulaSpan.className = 'formula-display';
-            formulaSpan.textContent = `(Formula: ${effectiveCell.rawFormula})`;
-            contentWrapper.appendChild(formulaSpan);
+            this._createAndAppendSpan(contentWrapper, 'formula-display', `(Formula: ${effectiveCell.rawFormula})`);
         }
         
         shadowRoot.appendChild(contentWrapper);
