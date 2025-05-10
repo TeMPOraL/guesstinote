@@ -1,0 +1,37 @@
+/* css/components/cell-widget.css */
+/* Styles for g-cell and g-ref host elements and their internal structure */
+/* (name, value, CI, formula display, error messages). */
+/* Includes states like error, dependency error. */
+
+/* Minimal host styling for custom elements if needed for layout outside shadow DOM */
+g-cell, g-ref {
+    /* display: inline-block; by default from browser or shadow DOM style */
+    /* vertical-align: middle; by default from browser or shadow DOM style */
+}
+
+/* Example of how you might style the host element based on an attribute for full-width */
+g-cell[full-width-active="true"], 
+g-ref[full-width-active="true"] {
+    display: block;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Global error indicators that can be applied to the host custom element */
+.error-state-indicator { 
+    /* These classes are applied to the host custom element by the Renderer */
+    /* Example: outline: 2px solid red; */
+    /* Actual styling is in Renderer's injected styles for better encapsulation */
+}
+.dependency-error-indicator {
+    /* Example: outline: 2px solid orange; */
+}
+.cell-not-found-indicator {
+    /* Example: outline: 2px dashed red; */
+}
+
+/* Note: Styles for the internal structure of cell widgets (like .name, .value, .ci, .error-message)
+   are intended to be injected into the Shadow DOM by CellRenderer.js.
+   If these styles are also needed globally or for non-Shadow DOM elements, they can be added here.
+   The RefactorPlan suggests these styles would be part of cell-widget.css and injected.
+*/

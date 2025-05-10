@@ -1,0 +1,80 @@
+/* css/layout/app-layout.css */
+/* Styles for the main page structure (body, header, main, footer) */
+/* and general UI controls in header/footer. */
+
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+header {
+    background: #333;
+    color: #fff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+header h1 {
+    margin-bottom: 0.5rem;
+}
+
+.document-controls, .io-controls {
+    margin-bottom: 0.5rem;
+}
+
+.document-controls label,
+.document-controls input,
+.document-controls button,
+.io-controls button,
+footer input {
+    margin: 0 0.25rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+}
+
+.document-controls button,
+.io-controls button {
+    background-color: #5cb85c;
+    color: white;
+    cursor: pointer;
+}
+.document-controls button:hover,
+.io-controls button:hover {
+    background-color: #4cae4c;
+}
+
+main {
+    display: flex;
+    flex-direction: row; /* Lays out children (editor, preview) side-by-side */
+    height: calc(100vh - 220px); /* Adjust 220px based on actual combined height of header and footer */
+    min-height: 400px;
+    /* max-width: 1100px; removed to allow full width */
+    margin: 20px 0; /* Removed auto margins for horizontal, keeps vertical 20px */
+    background: #fff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border: 1px solid #ccc; /* Border for the combined editor/preview area */
+    padding: 0; /* Padding is now handled by the individual panes */
+}
+
+#previewPane { /* Was .preview-pane - For the <div> rendering HTML */
+    flex: 1; /* Take the other half */
+    padding: 15px;
+    overflow-y: auto; /* Vertical scrollbar if needed */
+    border: none;
+    outline: none;
+    white-space: normal; /* Allow normal HTML rendering flow */
+    word-wrap: break-word;
+}
+
+footer {
+    text-align: center;
+    padding: 1rem;
+    background: #333;
+    color: #fff;
+    margin-top: 20px;
+}
