@@ -108,14 +108,13 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let j = definitionMatches.length - 1; j >= 0; j--) {
                 const currentMatch = definitionMatches[j];
                 const rawDefText = currentMatch[0];
-                const idPart = currentMatch[1], namePart = currentMatch[2], formulaPart = currentMatch[3];
-                const cellId = (idPart ? idPart.trim() : namePart.trim());
-                const displayName = namePart.trim();
-                const formula = formulaPart.trim();
 
-                // Re-parse with parseSingleCellDefinition to get isFullWidth from rawDefText
+                // Use Parser.parseSingleCellDefinition to correctly get all details
                 const defDetails = Parser.parseSingleCellDefinition(rawDefText);
-                if (!defDetails) continue; // Should not happen if regex matched
+                if (!defDetails) {
+                    console.warn("processFullDocument: Failed to parse potential cell definition:", rawDefText);
+                    continue; 
+                }
 
                 const cell = _createOrUpdateCell(defDetails.id, defDetails.displayName, defDetails.formula, defDetails.rawText);
                 const renderOpts = {
