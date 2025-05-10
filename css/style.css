@@ -46,39 +46,28 @@ footer input {
 
 
 main {
-    padding: 1.5rem; /* Increased padding */
-    max-width: 1100px; /* Increased max-width */
-    margin: 20px auto;
+    display: flex;
+    flex-direction: row; /* Lays out children (editor, preview) side-by-side */
+    height: calc(100vh - 220px); /* Adjust 220px based on actual combined height of header and footer */
+    min-height: 400px;
+    max-width: 1100px; 
+    margin: 20px auto; /* Centers the main block */
     background: #fff;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border: 1px solid #ccc; /* Border for the combined editor/preview area */
+    padding: 0; /* Padding is now handled by the individual panes */
 }
 
 /* Styles for the new two-pane editor layout */
-.editor-container-wrapper {
-    /* This class can be used if an additional wrapper around .editor-container is needed for layout */
-    /* For now, main's padding and max-width will apply if .editor-container is directly in main */
-}
+/* .editor-container-wrapper and .editor-container rules are removed as 'main' now handles this layout. */
 
-.editor-container {
-    display: flex;
-    flex-direction: row;
-    /* Calculate height based on viewport, minus header and footer estimates */
-    /* Adjust 220px based on actual combined height of header and footer */
-    height: calc(100vh - 220px); 
-    min-height: 400px; /* Minimum workable height */
-    border: 1px solid #ccc; /* Border around the two panes */
-    margin: 20px 0; /* Consistent with main's original top/bottom margin if it had one */
-    background: #fff; /* Background for the editor area */
-    box-shadow: 0 0 8px rgba(0,0,0,0.08); /* Subtle shadow for the editor block */
-}
-
-.editor-pane { /* For the <textarea> */
+#htmlEditor { /* Was .editor-pane - For the <textarea> */
     flex: 1; /* Take half the space */
     padding: 15px;
-    border: none; /* Border is on .editor-container */
+    border: none; /* Border is on main container */
     border-right: 1px solid #ccc; /* Separator line */
     font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
-    font-size: 14px;
+    font-size: 16px; /* Increased from 14px */
     line-height: 1.5;
     white-space: pre; /* Preserve whitespace for HTML/markdown editing */
     overflow: auto; /* Scrollbars if content exceeds dimensions */
@@ -86,7 +75,7 @@ main {
     outline: none; /* Remove default focus outline */
 }
 
-.preview-pane { /* For the <div> rendering HTML */
+#previewPane { /* Was .preview-pane - For the <div> rendering HTML */
     flex: 1; /* Take the other half */
     padding: 15px;
     overflow-y: auto; /* Vertical scrollbar if needed */
