@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lineNumbers: true,
             theme: "default" // Optional: you can add themes by including their CSS
         });
+        cmEditor.setSize(null, "100%"); // Set height to 100% of parent, width from CSS
 
         Persistence.loadInitialDocument(); // This will call Guesstinote.setEditorContent
         setupEventListeners();
