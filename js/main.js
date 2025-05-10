@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let cmEditor; // To store the CodeMirror instance
 
     const previewPane = document.getElementById('previewPane'); // New element
+    const resizer = document.getElementById('resizer');
     const docNameInput = document.getElementById('docName');
     const newDocBtn = document.getElementById('newDocBtn');
     const saveDocBtn = document.getElementById('saveDocBtn');
@@ -51,7 +52,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // processCellCalculations function has been moved to CalculationManager.js
 
+    function setupDragToResize() {
+        let isResizing = false;
+        let editorWrapperElement; // Store the CodeMirror wrapper
+
+        resizer.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent text selection or other default actions
+            isResizing = true;
+            editorWrapperElement = cmEditor.getWrapperElement(); // Get CM's main div
+
+            // Apply styles to prevent text selection during drag
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'col-resize'; // Optional: change cursor globally
+
+            const startX = e.clientX;
+            // Get the initial flex-basis as a number.
+            // It might be a percentage initially, so convert to pixels for consistent calculation.
+            const initialEditorWidth = editorWrapperElement.offsetWidth;
+
+
+            function onMouseMove(moveEvent) {
+                if (!isResizing) return;
+                const deltaX = moveEvent.clientX - startX;
+                let newEditorWidth = initialEditorWidth + deltaX;
+                
+                // Optional: Add min/max width constraints
+                const mainPanelWidth = editorWrapperElement.parentElement.offsetWidth;
+                const resizerWidth = resizer.offsetWidth;
+                const minPaneWidth = 50; // Minimum width for editor and preview panes
+
+                if (newEditorWidth < minPaneWidth) {
+                    newEditorWidth = minPaneWidth;
+                }
+                if (newEditorWidth > mainPanelWidth - resizerWidth - minPaneWidth) {
+                    newEditorWidth = mainPanelWidth - resizerWidth - minPaneWidth;
+                }
+
+                editorWrapperElement.style.flexBasis = `${newEditorWidth}px`;
+                // No need to set previewPane's flexBasis if it's flex: 1, it will adjust.
+                cmEditor.refresh(); // Notify CodeMirror to update its layout
+            }
+
+            function onMouseUp() {
+                if (!isResizing) return;
+                isResizing = false;
+                
+                // Remove global styles
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    }
+
     function setupEventListeners() {
+        setupDragToResize(); // Initialize the resizer logic
+
         cmEditor.on('change', () => {
             clearTimeout(processingTimeout);
             processingTimeout = setTimeout(updatePreviewAndProcessAll, PROCESSING_DELAY);

@@ -2,10 +2,12 @@
 /* Styles for the CodeMirror editor wrapper */
 
 .CodeMirror { /* Styles for CodeMirror's main wrapper div */
-    flex: 1; /* Take half the horizontal space relative to other flex items in main */
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-basis: 50%; /* Initial width, will be changed by JS */
     height: 100%; /* Take full available vertical space from parent (main) */
     border: none; /* Remove any default border from CM wrapper if necessary */
-    border-right: 1px solid #ccc; /* Separator line between editor and preview */
+    /* border-right: 1px solid #ccc; */ /* Removed, resizer will handle separation */
     outline: none; /* Remove default focus outline if any */
     box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
 }
