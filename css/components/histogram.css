@@ -1,0 +1,39 @@
+/* css/components/histogram.css */
+/* Styles specific to the histogram display */
+
+.histogram-container {
+    display: inline-flex;
+    align-items: flex-end;
+    height: 20px;  /* Default height */
+    min-width: 30px; /* Minimum width to be somewhat visible */
+    margin-left: 5px;
+    border-left: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    padding-top: 2px; /* Space for bars not to touch top if border added there */
+    box-sizing: border-box;
+    background-color: #fdfdfd; /* Light background for the histogram area */
+}
+
+.histogram-bar {
+    background-color: #3273dc; /* Bulma's primary color */
+    margin-right: 1px; /* Space between bars */
+    flex-basis: 3px; /* Default width of a bar if not growing */
+    flex-grow: 1;    /* Allow bars to share space in full-width */
+    min-width: 1px;  /* Prevent bars from disappearing */
+}
+.histogram-bar:last-child {
+    margin-right: 0;
+}
+
+/* Styles for full-width histograms */
+:host([full-width-active="true"]) .histogram-container {
+    height: 50px; /* 2.5x the default height (20px * 2.5 = 50px) */
+    width: 100%;  /* Take full available width */
+    margin-top: 5px; /* Add some space above when it's block display */
+}
+
+/* In full-width, bars will grow to fill the container.
+   No specific change needed for .histogram-bar itself for full-width height,
+   as its height is controlled by its content (which is set by JS).
+   The container height dictates the available space.
+*/

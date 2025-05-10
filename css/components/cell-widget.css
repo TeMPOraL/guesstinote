@@ -3,35 +3,90 @@
 /* (name, value, CI, formula display, error messages). */
 /* Includes states like error, dependency error. */
 
-/* Minimal host styling for custom elements if needed for layout outside shadow DOM */
-g-cell, g-ref {
-    /* display: inline-block; by default from browser or shadow DOM style */
-    /* vertical-align: middle; by default from browser or shadow DOM style */
+/* Host element base styles */
+:host {
+    display: inline-block; /* Default display for cells/refs */
+    padding: 3px 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 2px;
+    font-family: sans-serif; /* Default font for cell content */
+    font-size: 0.9rem;
+    vertical-align: middle;
+    background-color: #f9f9f9;
 }
 
-/* Example of how you might style the host element based on an attribute for full-width */
-g-cell[full-width-active="true"], 
-g-ref[full-width-active="true"] {
+:host([full-width-active="true"]) {
     display: block;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
+    padding: 8px;
+    background-color: #fff;
 }
 
-/* Global error indicators that can be applied to the host custom element */
-.error-state-indicator { 
-    /* These classes are applied to the host custom element by the Renderer */
-    /* Example: outline: 2px solid red; */
-    /* Actual styling is in Renderer's injected styles for better encapsulation */
+/* Error state indicators on the host element */
+:host(.error-state-indicator) {
+    border-color: #ff3860; /* Matches Bulma's danger color */
+    background-color: #fff5f7;
 }
-.dependency-error-indicator {
-    /* Example: outline: 2px solid orange; */
+:host(.dependency-error-indicator) {
+    border-color: #ffdd57; /* Matches Bulma's warning color */
+    background-color: #fffbeb;
 }
-.cell-not-found-indicator {
-    /* Example: outline: 2px dashed red; */
+:host(.cell-not-found-indicator) {
+    border-color: #ff3860;
+    background-color: #fff5f7;
+    font-style: italic;
 }
 
-/* Note: Styles for the internal structure of cell widgets (like .name, .value, .ci, .error-message)
-   are intended to be injected into the Shadow DOM by CellRenderer.js.
-   If these styles are also needed globally or for non-Shadow DOM elements, they can be added here.
-   The RefactorPlan suggests these styles would be part of cell-widget.css and injected.
-*/
+/* Internal structure styling */
+.content-wrapper {
+    display: inline-flex; /* Allows histogram to align with text */
+    align-items: baseline;
+    flex-wrap: wrap; /* Allow wrapping if content is too long */
+}
+
+:host([full-width-active="true"]) .content-wrapper {
+    display: block; /* Full width content flows as block */
+}
+
+.name {
+    font-weight: bold;
+    color: #363636; /* Bulma's text color */
+    margin-right: 5px;
+}
+
+.value {
+    margin-right: 5px;
+    color: #2254a2; /* A distinct color for values */
+}
+
+.ci {
+    font-size: 0.9em;
+    color: #7a7a7a; /* Bulma's grey-dark */
+    margin-right: 5px;
+}
+.ci::before {
+    content: "(";
+}
+.ci::after {
+    content: ")";
+}
+
+.formula-display {
+    font-size: 0.8em;
+    color: #7a7a7a;
+    margin-left: 5px;
+    font-style: italic;
+}
+
+.error-message {
+    color: #ff3860;
+    font-style: italic;
+    margin-left: 5px;
+}
+
+/* Styles for specific states like processing or empty array */
+.value[style*="italic"] { /* Catches italicized status messages */
+    color: #7a7a7a;
+}

@@ -1,10 +1,21 @@
 class GRefElement extends HTMLElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
+        const shadowRoot = this.attachShadow({ mode: 'open' });
         this._targetCellId = null;
         this._targetCellInstance = null;
         this._isInitialized = false;
+
+        // Link external stylesheets
+        const cellWidgetStyles = document.createElement('link');
+        cellWidgetStyles.setAttribute('rel', 'stylesheet');
+        cellWidgetStyles.setAttribute('href', 'css/components/cell-widget.css');
+        shadowRoot.appendChild(cellWidgetStyles);
+
+        const histogramStyles = document.createElement('link');
+        histogramStyles.setAttribute('rel', 'stylesheet');
+        histogramStyles.setAttribute('href', 'css/components/histogram.css');
+        shadowRoot.appendChild(histogramStyles);
     }
 
     static get observedAttributes() {
