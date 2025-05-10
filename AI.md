@@ -69,7 +69,8 @@ To enable robust cell referencing and reactivity, the following aspects need to 
 ## Project Files and Structure
 This section outlines the core files of the Guesstinote project, reflecting the modularization.
 
-*   `index.html`: The main HTML file. Defines the layout, UI controls, and includes CSS and JavaScript.
+*   **Editor Implementation**: The HTML editor functionality is provided by CodeMirror 5 (version 5.65.19, vendored in `vendor/codemirror-5.65.19/`). It is configured in `js/main.js` for the `#htmlEditor` textarea.
+*   `index.html`: The main HTML file. Defines the layout, UI controls, and includes CSS and JavaScript (including CodeMirror).
 *   `css/layout/app-layout.css`: Styles for the main page structure and general UI controls.
 *   `css/components/editor.css`: Styles for the HTML editor.
 *   `css/components/cell-widget.css`: Styles for `g-cell` and `g-ref` elements and their internal structure.
