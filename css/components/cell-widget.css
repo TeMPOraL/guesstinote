@@ -74,15 +74,19 @@
 }
 
 .formula-display {
-    display: none; /* Hidden by default */
+    visibility: hidden; /* Hidden by default, but occupies space */
+    opacity: 0;         /* Fully transparent */
     font-size: 0.8em;
     color: #7a7a7a;
     margin-left: 5px;
     font-style: italic;
+    transition: opacity 0.15s ease-in-out, visibility 0s linear 0.15s; /* Smooth fade */
 }
 
 :host(:hover) .formula-display {
-    display: inline; /* Show on hover */
+    visibility: visible; /* Make it visible */
+    opacity: 1;          /* Fully opaque */
+    transition-delay: 0s; /* Apply immediately on hover */
 }
 
 .error-message {
