@@ -5,6 +5,14 @@ const Persistence = {
     LAST_OPENED_KEY: 'guesstinote_last_opened_doc_id',
     DOC_LIST_KEY: 'guesstinote_doc_list', // Stores an array of {id, name}
 
+    hasUnsavedChanges: false,
+
+    markUnsavedChanges: function() {
+        this.hasUnsavedChanges = true;
+        // console.log("Persistence: Marked unsaved changes.");
+        // Future: Update UI to indicate unsaved changes (e.g., asterisk on doc name, enable save button)
+    },
+
     generateNewDocId: function() {
         return `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     },
