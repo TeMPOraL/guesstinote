@@ -31,45 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // This is a pragmatic approach. A more robust solution might involve MutationObservers
         // or a ready state from custom elements, but that adds complexity.
         setTimeout(() => {
-            pruneCellsCollection();
+            CalculationManager.pruneCellsCollection(); // Use CalculationManager
             CalculationManager.processCellCalculations(); // Use CalculationManager
         }, 50); // Small delay, adjust if needed
     }
 
-    function pruneCellsCollection() {
-        // Prune CellsCollection: Remove cells whose <g-cell> tags are no longer in the previewPane.
-        const activeCellIds = new Set();
-        previewPane.querySelectorAll('g-cell').forEach(el => {
-            const id = el.getAttribute('id');
-            if (id) activeCellIds.add(id);
-        });
-
-        const currentCells = CellsCollectionManager.getCollection();
-        for (const id in currentCells) {
-            if (!activeCellIds.has(id)) {
-                // console.log(`Pruning cell ${id} from CellsCollection.`);
-                const cellToRemove = CellsCollectionManager.getCell(id); // Get cell from manager
-                if (cellToRemove) {
-                    // Notify dependents that this cell is gone
-                    cellToRemove.dependents.forEach(depId => {
-                        const dependentCell = CellsCollectionManager.getCell(depId); // Get cell from manager
-                        if (dependentCell) {
-                            dependentCell.dependencies.delete(id);
-                            dependentCell.needsReevaluation = true; // Mark for re-evaluation
-                        }
-                    });
-                    // Remove from its dependencies' dependents list
-                     cellToRemove.dependencies.forEach(depId => {
-                        const dependencyCell = CellsCollectionManager.getCell(depId); // Get cell from manager
-                        if (dependencyCell) {
-                            dependencyCell.dependents.delete(id);
-                        }
-                    });
-                }
-                CellsCollectionManager.removeCell(id); // Remove cell using manager
-            }
-        }
-    }
+    // pruneCellsCollection function has been moved to CalculationManager.js
 
     // processCellCalculations function has been moved to CalculationManager.js
 
