@@ -166,6 +166,8 @@ class Cell {
         const initialValue = this.value;
         const initialIsDependencyError = this.isDependencyError;
         const initialSamplesLength = this.samples.length;
+        const initialCILower = this.ci ? this.ci.lower : null;
+        const initialCIUpper = this.ci ? this.ci.upper : null;
 
         let errorWasCleared = this.clearError(); // Clears errorState, isDependencyError. Returns true if state changed.
 
@@ -241,26 +243,32 @@ class Cell {
             if (this.type === 'constant' || this.type === 'formulaOnlyConstant') {
                 if (this.value !== initialValue) dataChangedSignificantEnoughForDependents = true;
             } else { // Distribution
-                if (this.mean !== initialMean || this.samples.length !== initialSamplesLength) {
+                if (this.mean !== initialMean ||
+                    (this.ci ? this.ci.lower : null) !== initialCILower ||
+                    (this.ci ? this.ci.upper : null) !== initialCIUpper ||
+                    this.samples.length !== initialSamplesLength) {
                     dataChangedSignificantEnoughForDependents = true;
                 }
-                // A more robust check for sample array content change could be added here if mean/length isn't sufficient
             }
         }
         
-        // Always notify own elements if error was cleared or if data changed.
+        // Always notify own elements if its state (error or data) changed for display purposes.
         if (dataChangedSignificantEnoughForDependents || errorWasCleared) {
             this.notifyElementsToRefresh();
         }
 
-        // Trigger dependents only if there was a significant change (value or error state)
+        // Trigger dependents and determine return value for main processing loop
         if (dataChangedSignificantEnoughForDependents) {
             this._triggerDependentsUpdate(cellsCollection, !!this.errorState);
-            return true; // Indicates a change that affects dependents
+            return true; // Indicates a change that affects dependents or this cell's core output
         }
-        // If only errorWasCleared but data remained same, it's a change for this cell's display, but maybe not for dependents.
-        // However, returning true ensures the processing loop considers it a change.
-        return errorWasCleared; 
+        
+        // If we reach here, data did NOT change significantly for dependents.
+        // An error might have been cleared, but the resulting data is the same as before the error was set
+        // (or the same as the last good state if it was a dependency error).
+        // In this case, the cell itself might need a rerender (handled by notifyElementsToRefresh if errorWasCleared),
+        // but it shouldn't cause the main loop to iterate further.
+        return false; 
     }
 
     setError(errorMessage, isDepError = false) {

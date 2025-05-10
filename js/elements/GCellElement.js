@@ -145,7 +145,7 @@ class GCellElement extends HTMLElement {
         const isFullWidth = this.hasAttribute('full-width') && this.getAttribute('full-width') !== 'false';
         this.toggleAttribute('full-width-active', isFullWidth);
 
-        if (window.Renderer) {
+        if (typeof Renderer !== 'undefined' && Renderer) {
             Renderer.renderCell({
                 hostElement: this,
                 isReference: false,
