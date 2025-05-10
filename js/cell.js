@@ -154,7 +154,8 @@ class Cell {
         });
     }
 
-    processFormula(cellsCollection = window.Guesstinote.getCellsCollection()) {
+    // currentlyEvaluatingParam is passed down from Evaluator when it recursively calls processFormula for a dependency.
+    processFormula(cellsCollection = window.Guesstinote.getCellsCollection(), currentlyEvaluatingParam = null) {
         // If already processed in this cycle and not explicitly marked for re-evaluation, skip.
         if (this._processedInCurrentCycle && !this.needsReevaluation) {
             return false; 
