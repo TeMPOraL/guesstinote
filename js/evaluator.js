@@ -91,39 +91,72 @@ const Evaluator = (() => {
                     throw new Error(`Evaluator Error: Unknown cell identifier "${cellId}"`);
                 }
 
-                // If the cell itself had a parsing/evaluation error, propagate that.
-                // This is crucial for the reactive chain.
-                if (cell.errorState) {
-                    // We don't delete from currentlyEvaluating here, as this path is an error propagation,
-                    // not a successful evaluation completion for this specific identifier.
-                    // The deletion will happen when the original evaluation that led here unwinds.
-                    throw new Error(`Dependency cell "${cellId}" has an error: ${cell.errorState}`);
+                // If the cell has an error that was due to a dependency, propagate it.
+                // If it's a direct error, it might be fixed by re-evaluation below.
+                if (cell.errorState && cell.isDependencyError) {
+                    throw new Error(`Evaluator Error: Dependency cell "${cellId}" has an error: ${cell.errorState}`);
+                }
+
+                // If a cell needs re-evaluation (is stale) or hasn't been processed in the current cycle
+                // and isn't in a stable error state, process it now.
+                // This ensures that dependencies are up-to-date before being used.
+                if (cell.needsReevaluation || (!cell.isProcessedInCurrentCycle() && !cell.errorState)) {
+                    // console.log(`Evaluator: Triggering re-evaluation for stale/unprocessed dependency ${cellId}`);
+                    // Pass the current `currentlyEvaluating` set.
+                    // Cell.js's processFormula will handle its own ID within this set.
+                    cell.processFormula(cellsCollection, currentlyEvaluating); 
+                    
+                    // After attempting re-evaluation, check for errors again.
+                    if (cell.errorState) {
+                        // If an error occurred during re-evaluation, throw it.
+                        currentlyEvaluating.delete(cellId); // Clean up before throwing
+                        throw new Error(`Evaluator Error: Dependency cell "${cellId}" encountered an error upon re-evaluation: ${cell.errorState}`);
+                    }
                 }
                 
-                // A cell's processFormula (which calls this evaluator) should have populated samples/value.
-                // If a cell is in the collection, it's assumed to have been processed.
-                // The iterative loop in processFullDocument or reactive updates should handle this.
                 let result;
-                // Check if samples exist and have content, or if it's a scalar value.
-                if (cell.samples && cell.samples.length > 0) {
-                    result = [...cell.samples]; // Return a copy of samples
-                } else if (typeof cell.value === 'number') {
-                    result = cell.value; // Return scalar value
-                } else if (Array.isArray(cell.samples) && cell.samples.length === 0) { 
-                    // Handles explicitly empty arrays, e.g., from array()
-                    result = [];
+                // For constant types, always use the scalar value.
+                if (cell.type === 'formulaOnlyConstant' || cell.type === 'constant') {
+                    if (typeof cell.value === 'number') {
+                        result = cell.value;
+                    } else {
+                        currentlyEvaluating.delete(cellId);
+                        throw new Error(`Evaluator Error: Constant cell "${cellId}" (value: ${cell.value}) does not have a valid numeric value after processing.`);
+                    }
+                } 
+                // For distribution types, use samples.
+                else if (cell.type === 'distribution' || cell.type === 'pert' || cell.type === 'normal' || cell.type === 'dataArray') { // Explicitly check for distribution types
+                    if (cell.samples && cell.samples.length > 0) {
+                        // Ensure samples array has the correct global length for actual distributions.
+                        // Note: Calculator.processInlineDataArray (for 'array()' function) already ensures this.
+                        // Other direct distribution functions in Calculator also generate full sample arrays.
+                        // This check is more of a safeguard for unexpected states.
+                        if (cell.samples.length !== Calculator.getGlobalSamples()) {
+                             currentlyEvaluating.delete(cellId);
+                             throw new Error(`Evaluator Error: Distribution cell "${cellId}" has samples array with incorrect length (${cell.samples.length} vs ${Calculator.getGlobalSamples()}).`);
+                        }
+                        result = [...cell.samples]; 
+                    } else if (Array.isArray(cell.samples) && cell.samples.length === 0) { 
+                        // An explicitly empty sample array (e.g. from array() function with no arguments).
+                        // This will likely cause errors in Calculator.performBinaryOperation.
+                        result = []; 
+                    } else {
+                        // Distribution cell has no/invalid samples after processing and no error state.
+                        currentlyEvaluating.delete(cellId);
+                        throw new Error(`Evaluator Error: Distribution cell "${cellId}" has no valid samples after processing.`);
+                    }
+                } else if (typeof cell.value === 'number') { 
+                    // Fallback: if type is unknown/null but a scalar value exists (e.g. before full processing or error)
+                    // console.warn(`Evaluator: Cell "${cellId}" (type: ${cell.type}) resolved to a scalar value. This might be unexpected for a non-constant type.`);
+                    result = cell.value;
                 }
                 else {
-                    // This state implies the cell hasn't been successfully evaluated yet,
-                    // or it's part of an unresolvable cycle not caught by the simple check,
-                    // or its evaluation resulted in no value/samples without an error.
-                    // This should ideally be caught by the iterative processing or a more robust graph traversal.
-                    // For now, if it's truly unevaluated, this is an issue.
-                    currentlyEvaluating.delete(cellId); // Clean up before throwing
-                    throw new Error(`Evaluator Error: Cell "${cellId}" is not yet evaluated or has an inconsistent state.`);
+                    // Cell is in an unhandled or inconsistent state.
+                    currentlyEvaluating.delete(cellId);
+                    throw new Error(`Evaluator Error: Cell "${cellId}" (type: ${cell.type}) is in an inconsistent state. No valid value or samples found.`);
                 }
                 
-                currentlyEvaluating.delete(cellId); // Successful evaluation of this identifier
+                currentlyEvaluating.delete(cellId);
                 return result;
 
             case 'BinaryOp':

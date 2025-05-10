@@ -186,8 +186,17 @@ class Cell {
                 const newDependencies = this._extractDependencies(this.ast);
                 this._updateDependencyLinks(newDependencies, cellsCollection);
 
-                // Pass a new Set for currentlyEvaluating to avoid interference between sibling evaluations in a complex graph
-                const evaluationResult = Evaluator.evaluate(this.ast, cellsCollection, new Set([this.id]));
+                let evalCurrentlyEvaluatingSet;
+                if (currentlyEvaluatingParam) {
+                    // If called from Evaluator for a stale dependency, use the passed set.
+                    // this.id should already be in currentlyEvaluatingParam.
+                    evalCurrentlyEvaluatingSet = currentlyEvaluatingParam;
+                } else {
+                    // This is a top-level call (e.g., from main.js loop), start a new set.
+                    evalCurrentlyEvaluatingSet = new Set([this.id]);
+                }
+                
+                const evaluationResult = Evaluator.evaluate(this.ast, cellsCollection, evalCurrentlyEvaluatingSet);
 
                 // Process evaluationResult based on its structure (scalar, array, or object with type/samples)
                 if (typeof evaluationResult === 'number') {
