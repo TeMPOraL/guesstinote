@@ -69,6 +69,16 @@ g-ref[full-width-active] .content-wrapper {
     overflow: hidden; /* Ensure histogram doesn't overflow its fixed bounds */
 }
 
+/* Collapse viz area for inline scalars */
+.cell-viz-area.scalar-mode {
+    width: 0;
+    height: 0;
+    margin-right: 0;
+    border: none;
+    padding: 0;
+}
+
+
 g-cell[full-width-active] .cell-viz-area {
     width: 100%;
     height: 130px; /* Taller histogram for full-width */
@@ -89,10 +99,23 @@ g-cell[full-width-active] .cell-viz-area {
     align-items: flex-start; /* Align children to the start of the cross-axis */
 }
 
+/* For inline scalars, the prominent value is a direct child of cell-info-area,
+   so ensure it aligns correctly with the info-main-line that follows. */
+g-cell:not([full-width-active]) .cell-info-area > .scalar-value-prominent,
+g-ref:not([full-width-active]) .cell-info-area > .scalar-value-prominent {
+    line-height: 1.2; /* Adjust if baseline alignment with subsequent name is off */
+}
+
+
 .info-main-line {
     display: flex;
     align-items: baseline;
     flex-wrap: nowrap;
+}
+
+/* Specific styling for the info line of inline scalars if needed */
+.scalar-info-main-line {
+    /* Potentially adjust margins if the preceding prominent scalar value affects layout */
 }
 
 g-cell[full-width-active] .cell-info-area {
@@ -127,10 +150,26 @@ g-ref:hover .cell-id-display {
     margin-right: 5px;
 }
 
-.value {
+.value { /* Base style for value */
     margin-right: 5px;
     color: #2254a2; /* A distinct color for values */
 }
+
+/* Prominent value for inline scalars */
+g-cell:not([full-width-active]) .scalar-value-prominent,
+g-ref:not([full-width-active]) .scalar-value-prominent {
+    font-size: 1.2em; /* Larger font size */
+    font-weight: bold;
+    margin-right: 0.4em; /* Adjust spacing as it's now before name */
+}
+
+/* Prominent value for inline distributions/arrays */
+g-cell:not([full-width-active]) .distribution-value-prominent,
+g-ref:not([full-width-active]) .distribution-value-prominent {
+    font-size: 1.1em; /* Slightly larger font size */
+    /* font-weight: bold; /* Optional: if you want it bolder too */
+}
+
 
 .ci {
     font-size: 0.9em;

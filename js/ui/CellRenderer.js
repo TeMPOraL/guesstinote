@@ -40,41 +40,71 @@ const CellRenderer = {
         }
     },
 
-    _appendValueAndCIDisplay: function(parentElement, effectiveCell) {
+    _appendValueAndCIDisplay: function(parentElement, effectiveCell, makeValueProminent = false) {
         // Show data if there's no direct error (or it's a dependency error where stale data might be shown)
+        // This function now primarily handles non-scalar value/CI display.
         if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
-            if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant') {
-                if (typeof effectiveCell.value === 'number') {
-                    this._createAndAppendSpan(parentElement, 'value', `${parseFloat(effectiveCell.value.toFixed(2))}`);
-                } else if (!effectiveCell.errorState) { // Constant, but value not ready
-                    this._createAndAppendSpan(parentElement, 'value', ' (Processing...)', { fontStyle: 'italic' });
-                }
-            } else if (effectiveCell.type === 'dataArray' && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0 && !effectiveCell.errorState) {
+            if (effectiveCell.type === 'dataArray' && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0 && !effectiveCell.errorState) {
                 this._createAndAppendSpan(parentElement, 'value', ' []', { fontStyle: 'italic' });
             } else if (effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number' && typeof effectiveCell.ci.upper === 'number') {
-                this._createAndAppendSpan(parentElement, 'value', `${effectiveCell.mean.toFixed(1)}`);
+                // This block is for distributions (PERT, Normal, non-empty DataArray) with calculated stats
+                const valueClassName = makeValueProminent ? 'value distribution-value-prominent' : 'value';
+                this._createAndAppendSpan(parentElement, valueClassName, `${effectiveCell.mean.toFixed(1)}`);
                 this._createAndAppendSpan(parentElement, 'ci', `${effectiveCell.ci.lower.toFixed(1)} to ${effectiveCell.ci.upper.toFixed(1)}`);
-            } else if (!effectiveCell.errorState && effectiveCell.id) { // Fallback if no error, but not enough data
+            } else if (!effectiveCell.errorState && effectiveCell.id &&
+                       (effectiveCell.type !== 'constant' && effectiveCell.type !== 'formulaOnlyConstant')) { 
+                // Fallback for non-scalars if no error, but not enough data (e.g., still calculating)
                 this._createAndAppendSpan(parentElement, 'value', ' (Calculating...)', { fontStyle: 'italic' });
             }
         }
     },
 
-    _appendInfoAreaElements: function(infoArea, effectiveCell, displayName) {
-        // Cell ID (hidden by default, shown on hover via CSS) - will be stacked above info-main-line by CSS
+    _appendInfoAreaElements: function(infoArea, effectiveCell, displayName, isFullWidth) {
+        // Cell ID (hidden by default, shown on hover via CSS)
         this._createAndAppendSpan(infoArea, 'cell-id-display', effectiveCell.id ? `[${effectiveCell.id}]` : '');
 
-        const infoMainLine = document.createElement('div');
-        infoMainLine.className = 'info-main-line';
+        if (!isFullWidth && (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant')) { // Inline Scalar
+            // Append Scalar Value (large) directly to infoArea, after ID
+            if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
+                if (typeof effectiveCell.value === 'number') {
+                    this._createAndAppendSpan(infoArea, 'value scalar-value-prominent', `${parseFloat(effectiveCell.value.toFixed(2))}`);
+                } else if (!effectiveCell.errorState) { // Constant, but value not ready
+                    this._createAndAppendSpan(infoArea, 'value', ' (Processing...)', { fontStyle: 'italic' });
+                }
+                // If direct error, no value span here. Error shows in infoMainLine.
+            }
 
-        // Cell Name
-        this._createAndAppendSpan(infoMainLine, 'name', displayName);
-        // Error Message (if any) - Appears inline with other info
-        this._appendErrorDisplay(infoMainLine, effectiveCell);
-        // Value and CI
-        this._appendValueAndCIDisplay(infoMainLine, effectiveCell);
-        
-        infoArea.appendChild(infoMainLine);
+            const infoMainLine = document.createElement('div');
+            infoMainLine.className = 'info-main-line scalar-info-main-line';
+            // Cell Name
+            this._createAndAppendSpan(infoMainLine, 'name', displayName);
+            // Error Message (if any)
+            this._appendErrorDisplay(infoMainLine, effectiveCell);
+            // No Value or CI here for inline scalars, value handled above.
+            infoArea.appendChild(infoMainLine);
+
+        } else { // Non-scalar OR Full-width scalar
+            const infoMainLine = document.createElement('div');
+            infoMainLine.className = 'info-main-line';
+            // Cell Name
+            this._createAndAppendSpan(infoMainLine, 'name', displayName);
+            // Error Message
+            this._appendErrorDisplay(infoMainLine, effectiveCell);
+            
+            // For full-width scalars, regular value display. For non-scalars (inline/full-width), prominent value.
+            if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant') { // Must be full-width scalar here
+                 if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
+                    if (typeof effectiveCell.value === 'number') {
+                        this._createAndAppendSpan(infoMainLine, 'value', `${parseFloat(effectiveCell.value.toFixed(2))}`);
+                    } else if (!effectiveCell.errorState) {
+                        this._createAndAppendSpan(infoMainLine, 'value', ' (Processing...)', { fontStyle: 'italic' });
+                    }
+                }
+            } else { // Non-scalar (distribution or data array)
+                this._appendValueAndCIDisplay(infoMainLine, effectiveCell, !isFullWidth); // Prominent value only for inline non-scalars
+            }
+            infoArea.appendChild(infoMainLine);
+        }
     },
 
     _appendVisualizationArea: function(vizArea, effectiveCell, isFullWidth) {
@@ -87,13 +117,20 @@ const CellRenderer = {
         if (shouldRenderHistogram) {
             const histogramElement = HistogramRenderer.renderHistogramDisplay(effectiveCell.samples, isFullWidth);
             vizArea.appendChild(histogramElement);
-        } else if (!effectiveCell.errorState || effectiveCell.isDependencyError) { // Only show placeholder if not in a direct error state that hides value
-            // Show placeholder for scalars or when histogram isn't applicable but there's no overriding error
-             if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant' || effectiveCell.value !== null) {
-                this._createAndAppendSpan(vizArea, 'scalar-placeholder', '#');
+        } else if (!effectiveCell.errorState || effectiveCell.isDependencyError) { 
+            // Handle scalar visualization: placeholder for full-width, collapse for inline
+            if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant') {
+                if (isFullWidth) { // Full-width scalar shows placeholder
+                    if (effectiveCell.value !== null) { // Only show placeholder if there's a value or potential value
+                        this._createAndAppendSpan(vizArea, 'scalar-placeholder', '#');
+                    }
+                } else { // Inline scalar: vizArea should collapse
+                    vizArea.classList.add('scalar-mode');
+                }
             }
+            // If not a scalar and not rendering histogram (e.g. empty data array), vizArea might be empty.
         }
-        // If there's a direct error and no histogram, vizArea might remain empty, which is fine.
+        // If there's a direct error and no histogram, vizArea might remain empty.
     },
 
     _appendFormulaHint: function(contentWrapper, effectiveCell, isReference) {
@@ -142,7 +179,7 @@ const CellRenderer = {
         // Create info area (ID, name, value, CI, error)
         const infoArea = document.createElement('div');
         infoArea.className = 'cell-info-area';
-        this._appendInfoAreaElements(infoArea, effectiveCell, displayName);
+        this._appendInfoAreaElements(infoArea, effectiveCell, displayName, isFullWidth); // Pass isFullWidth
         contentWrapper.appendChild(infoArea);
         
         // Formula hint is absolutely positioned relative to contentWrapper (which is relative to g-cell)
