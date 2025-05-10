@@ -19,46 +19,14 @@ const CellRenderer = {
             cellIdFromHost, cellNameFromHost, cellFormulaFromHost
         } = renderInput;
 
-        const shadowRoot = hostElement.shadowRoot;
-        shadowRoot.innerHTML = ''; // Clear previous content
-
-        // Styles will be moved to separate CSS files and linked or injected.
-        // For now, keeping them here for simplicity during refactor.
-        // TODO: Move styles to css/components/cell-widget.css and css/components/histogram.css
-        const style = document.createElement('style');
-        style.textContent = `
-            :host {
-                display: inline-block; font-family: sans-serif; padding: 3px 6px; margin: 1px 2px;
-                border: 1px solid #ccc; border-radius: 4px; background-color: #f8f9fa;
-                vertical-align: middle; line-height: normal; box-sizing: border-box;
-            }
-            :host([full-width-active]) { 
-                display: block; width: auto; margin-top: 0.5em; margin-bottom: 0.5em;
-                padding: 8px; background-color: #f1f3f5; border: 1px solid #dee2e6;
-            }
-            .name { font-weight: bold; color: #333; }
-            .value { color: #007bff; margin-left: 5px; }
-            .ci { font-size: 0.9em; color: #555; margin-left: 5px; }
-            .formula-display { font-size: 0.8em; color: #6c757d; margin-left: 8px; font-style: italic; }
-            :host(.error-state-indicator) { background-color: #ffe3e3 !important; border-color: #ffb8b8 !important; }
-            :host(.dependency-error-indicator) { background-color: #fff3cd !important; border-color: #ffeeba !important; }
-            :host(.cell-not-found-indicator) { background-color: #fce3e3 !important; border-color: #f5c6cb !important; }
-            .error-message { color: #d8000c; font-size: 0.9em; margin-left: 5px; }
-            /* Histogram specific styles - these should move to histogram.css */
-            .histogram-container {
-                display: flex; align-items: flex-end; height: 20px; min-width: 50px;
-                border: 1px solid #ced4da; background-color: #e9ecef; margin-left: 5px;
-                margin-top: 2px; padding: 1px; box-sizing: border-box; vertical-align: middle;
-            }
-            :host([full-width-active]) .histogram-container { height: 40px; margin-top: 5px; }
-            .histogram-bar {
-                flex-grow: 1; background-color: #007bff; margin-right: 1px; min-width: 2px;
-            }
-            .histogram-bar:last-child { margin-right: 0; }
-        `;
-        shadowRoot.appendChild(style);
+        // Shadow DOM is no longer used. Styles are applied globally.
+        // hostElement.shadowRoot would be null.
+        hostElement.innerHTML = ''; // Clear previous content directly from the host element
 
         const contentWrapper = document.createElement('span');
+        // Add a class to the content wrapper if you need to target it specifically,
+        // though direct children of g-cell/g-ref can also be styled.
+        contentWrapper.className = 'content-wrapper'; // Ensure this class is defined in cell-widget.css
         const effectiveCell = isReference ? targetCell : cellData;
         let displayName;
 
@@ -69,7 +37,7 @@ const CellRenderer = {
             displayName = referenceDisplayName || referenceTargetId;
             this._createAndAppendSpan(contentWrapper, 'name', displayName);
             this._createAndAppendSpan(contentWrapper, 'error-message', ` (Error: Target cell '${referenceTargetId}' not found)`);
-            shadowRoot.appendChild(contentWrapper);
+            hostElement.appendChild(contentWrapper); // Append to host
             return;
         }
         
@@ -78,7 +46,7 @@ const CellRenderer = {
             displayName = cellNameFromHost || cellIdFromHost || "Unknown Cell";
             this._createAndAppendSpan(contentWrapper, 'name', displayName);
             this._createAndAppendSpan(contentWrapper, 'error-message', ` (Error: Cell data unavailable. Formula: ${cellFormulaFromHost || 'N/A'})`);
-            shadowRoot.appendChild(contentWrapper);
+            hostElement.appendChild(contentWrapper); // Append to host
             return;
         }
         
@@ -126,7 +94,7 @@ const CellRenderer = {
             this._createAndAppendSpan(contentWrapper, 'formula-display', `(Formula: ${effectiveCell.rawFormula})`);
         }
         
-        shadowRoot.appendChild(contentWrapper);
+        hostElement.appendChild(contentWrapper); // Append to host
     }
     // _renderHistogram method is removed, now in HistogramRenderer.js
 };
