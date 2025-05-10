@@ -9,98 +9,98 @@ The JavaScript code will be reorganized into more focused modules,
 typically within subdirectories reflecting their primary domain.
 
 ### 1.  Core Application & Orchestration:
-    *   `js/main.js`: (Retains name, but delegates more)
+    *   `js/main.js`: (Retains name, but delegates more) `[/]`
         *   Responsibilities: Application entry point, initialization, top-level UI event listeners (doc name, global samples, main buttons), orchestration of the main processing loop (delegating to CalculationManager). Manages the Guesstinote global API object.
         *   Why: Centralizes application startup and high-level UI interaction.
 
 ### 2.  Cell Model & Management:
-    *   `js/cell/Cell.js`: (Replaces `js/cell.js`)
+    *   `js/cell/Cell.js`: (Replaces `js/cell.js`) `[x]`
         *   Responsibilities: Defines the `Cell` class (ID, formula, AST, value, samples, error state, dependencies, dependents, associated DOM elements). Handles its own state changes and notifications.
         *   Why: Encapsulates the core data and behavior of a single computational unit.
-    *   `js/cell/CellsCollectionManager.js`: (New module)
+    *   `js/cell/CellsCollectionManager.js`: (New module) `[x]`
         *   Responsibilities: Manages the global collection of `Cell` objects (add, remove, retrieve), prunes cells that are no longer present in the document.
         *   Why: Isolates the logic for managing the set of all cells.
 
 ### 3.  Formula Processing Pipeline:
-    *   `js/formula/FormulaParser.js`: (Replaces `js/formula_parser.js`)
+    *   `js/formula/FormulaParser.js`: (Replaces `js/formula_parser.js`) `[x]`
         *   Responsibilities: Tokenizes formula strings and parses them into Abstract Syntax Trees (ASTs).
         *   Why: Dedicated to syntactic analysis of formulas.
-    *   `js/formula/Evaluator.js`: (Replaces `js/evaluator.js`)
+    *   `js/formula/Evaluator.js`: (Replaces `js/evaluator.js`) `[x]`
         *   Responsibilities: Evaluates ASTs. Resolves cell references (using CellsCollectionManager), handles function calls, and performs arithmetic operations by delegating to `DistributionMath`.
         *   Why: Dedicated to the semantic evaluation of parsed formulas.
 
 ### 4.  Calculation & Math Logic:
-    *   `js/config.js`: (New module)
+    *   `js/config.js`: (New module) `[x]`
         *   Responsibilities: Stores and manages global settings like the number of Monte Carlo samples and the calculated histogram bin count. Provides an interface to get/set these values.
         *   Why: Centralizes application-wide configurable parameters.
-    *   `js/math/DistributionGenerator.js`: (New, from `js/calculator.js`)
+    *   `js/math/DistributionGenerator.js`: (New, from `js/calculator.js`) `[x]`
         *   Responsibilities: Generates sample arrays for various statistical distributions (PERT, Normal from CI, etc.), using global settings from `js/config.js`.
         *   Why: Isolates the logic for creating specific types of distributions.
-    *   `js/math/DistributionMath.js`: (New, from `js/calculator.js`)
+    *   `js/math/DistributionMath.js`: (New, from `js/calculator.js`) `[x]`
         *   Responsibilities: Performs arithmetic operations (element-wise) on sample arrays and scalars (Scalar OP Scalar, Scalar OP Array, Array OP Array).
         *   Why: Centralizes the core mathematical operations for distributions and scalars.
-    *   `js/math/StatisticsCalculator.js`: (New, from `js/calculator.js`)
+    *   `js/math/StatisticsCalculator.js`: (New, from `js/calculator.js`) `[x]`
         *   Responsibilities: Calculates basic statistics (e.g., mean, confidence intervals) from sample arrays. Does NOT include histogram binning.
         *   Why: Isolates general statistical calculations.
 
 ### 5.  Reactivity & Calculation Management:
-    *   `js/calculation/CalculationManager.js`: (New module)
+    *   `js/calculation/CalculationManager.js`: (New module) `[/]`
         *   Responsibilities: Manages the overall calculation lifecycle. Runs the iterative processing loop for all cells. Orchestrates calls to `Cell.processFormula()`. Manages updates to the dependency graph (potentially by providing services to `Cell.js` or by directly manipulating cell dependency/dependent lists). Triggers recalculation of dependent cells.
         *   Why: Centralizes the complex logic of reactive updates and the calculation flow across all cells.
 
 ### 6.  Rendering & UI Components:
-    *   `js/ui/CellRenderer.js`: (Replaces `js/renderer.js`, with narrower scope)
-        *   Responsibilities: Generates the HTML content for the Shadow DOM of `<g-cell>` and `<g-ref>` elements, displaying cell name, value/statistics (mean, CI), and error messages. Delegates histogram rendering to `HistogramRenderer`.
+    *   `js/ui/CellRenderer.js`: (Replaces `js/renderer.js`, with narrower scope) `[x]`
+        *   Responsibilities: Generates the HTML content for `<g-cell>` and `<g-ref>` elements (no Shadow DOM), displaying cell name, value/statistics (mean, CI), and error messages. Delegates histogram rendering to `HistogramRenderer`.
         *   Why: Focuses on rendering the textual and basic state of a cell, separating it from complex visualizations.
-    *   `js/ui/HistogramRenderer.js`: (New module)
+    *   `js/ui/HistogramRenderer.js`: (New module) `[x]`
         *   Responsibilities:
             1.  Calculates histogram bin data (bin ranges and frequencies) from sample arrays, using the global bin count (Terrell-Scott's rule: ceil(pow(2*N, 1/3))) obtained from `js/config.js`.
             2.  Generates the HTML/SVG structure for displaying the histogram.
         *   Why: Isolates all histogram-related logic (data calculation and visual rendering).
-    *   `js/elements/GCellElement.js`: (Largely as-is)
-        *   Responsibilities: Defines the `<g-cell>` custom element, handles its attributes, interacts with its corresponding `Cell` model instance, and uses `CellRenderer` and `HistogramRenderer` to populate its Shadow DOM.
+    *   `js/elements/GCellElement.js`: (Largely as-is) `[x]`
+        *   Responsibilities: Defines the `<g-cell>` custom element (no Shadow DOM), handles its attributes, interacts with its corresponding `Cell` model instance, and uses `CellRenderer` to populate its content.
         *   Why: Encapsulates the `<g-cell>` web component.
-    *   `js/elements/GRefElement.js`: (Largely as-is)
-        *   Responsibilities: Defines the `<g-ref>` custom element, handles its attributes, interacts with the target `Cell` model instance, and uses `CellRenderer` and `HistogramRenderer` to populate its Shadow DOM.
+    *   `js/elements/GRefElement.js`: (Largely as-is) `[x]`
+        *   Responsibilities: Defines the `<g-ref>` custom element (no Shadow DOM), handles its attributes, interacts with the target `Cell` model instance, and uses `CellRenderer` to populate its content.
         *   Why: Encapsulates the `<g-ref>` web component.
 
 ### 7.  Persistence & Utilities:
-    *   `js/persistence/Persistence.js`: (Replaces `js/persistence.js`)
+    *   `js/persistence/Persistence.js`: (Replaces `js/persistence.js`) `[x]`
         *   Responsibilities: Handles saving and loading documents to/from `localStorage`, document import/export functionality.
         *   Why: Well-defined, focused concern.
-    *   `js/utils/Tutorial.js`: (Replaces `js/tutorial.js`)
-        *   Responsibilities: Provides the content for the initial tutorial document.
+    *   `js/utils/Tutorial.js`: (Replaces `js/tutorial.js`) `[x]`
+        *   Responsibilities: Provides the content for the initial tutorial document (fetched from `html/tutorial-content.html`).
         *   Why: Simple utility, well-isolated.
 
 ## II. CSS Modularization Plan:
 
 The single `css/style.css` file will be broken down into multiple, more focused stylesheets.
 
-1.  `css/base/variables.css`:
+1.  `css/base/variables.css`: `[x]` (File created and then removed as unused, fulfilling the plan's intent)
     *   Concerns: Defines CSS custom properties for global theme elements (colors for errors, warnings, primary UI elements; font families; common spacing units).
     *   Why: Establishes a common visual language and facilitates easier theming or global style adjustments.
 
-2.  `css/layout/app-layout.css`:
+2.  `css/layout/app-layout.css`: `[x]`
     *   Concerns: Styles for the main page structure (`body`, `header`, `main` container for editor/preview, `footer`), and styles for general UI controls in the header/footer.
     *   Why: Separates overall application layout from component-specific styling.
 
-3.  `css/components/cell-widget.css`:
+3.  `css/components/cell-widget.css`: `[x]`
     *   Concerns: Styles for the `<g-cell>` and `<g-ref>` host elements and their internal structure (name, value, CI, formula display, error messages). This includes states like error, dependency error, etc.
-    *   Why: Encapsulates all styling for the cell widgets. These styles would be injected into the Shadow DOM of the custom elements by `CellRenderer.js` or linked directly by the custom elements.
+    *   Why: Encapsulates all styling for the cell widgets. These styles are now global as Shadow DOM was removed.
 
-4.  `css/components/histogram.css`:
+4.  `css/components/histogram.css`: `[x]`
     *   Concerns: Styles specific to the histogram display (`.histogram-container`, `.histogram-bar`).
-    *   Why: Isolates styling for the histogram component. Applied similarly to `cell-widget.css` by the `HistogramRenderer.js`.
+    *   Why: Isolates styling for the histogram component. Styles are global.
 
-5.  `css/components/editor.css`:
+5.  `css/components/editor.css`: `[x]`
     *   Concerns: Styles for the HTML editor textarea (`#htmlEditor`).
     *   Why: Allows independent styling and potential future enhancements of the text input area.
 
 ## III. Histogram Bin Count Update:
 
-*   The number of bins for histograms will be calculated using Terrell-Scott's rule: `ceil(pow(2 * N, 1/3))`, where `N` is the global number of samples.
-*   This calculation will be performed once (e.g., in `js/config.js` or by `HistogramRenderer` upon initialization) and updated if the global number of samples changes.
-*   This bin count will be used for all histograms, except for cells representing a single scalar value (which will show one bin/bar).
+*   The number of bins for histograms will be calculated using Terrell-Scott's rule: `ceil(pow(2 * N, 1/3))`, where `N` is the global number of samples. `[x]`
+*   This calculation will be performed once (e.g., in `js/config.js` or by `HistogramRenderer` upon initialization) and updated if the global number of samples changes. `[x]`
+*   This bin count will be used for all histograms, except for cells representing a single scalar value (which will show one bin/bar). `[x]`
 
 ## IV. Rationale for Changes:
 
