@@ -274,25 +274,38 @@ class Cell {
             }
         }
 
-        // If an error was cleared, it's a display change, even if data reverted to a pre-error state.
-        if (errorWasCleared) {
+        // Determine if a display refresh is needed based on actual changes.
+        if (errorWasCleared || 
+            this.errorState !== initialErrorState || 
+            this.isDependencyError !== initialIsDependencyError) {
             stateChangedForDisplay = true;
-        }
-        
-        if (!stateChangedForDisplay && this.errorState === null) {
-            stateChangedForDisplay = true;
+        } else if (this.errorState === null) { // No error, check for data changes.
+            if (this.type === 'constant' || this.type === 'formulaOnlyConstant') {
+                if (this.value !== initialValue) {
+                    stateChangedForDisplay = true;
+                }
+            } else { // Distribution type.
+                if (this.mean !== initialMean ||
+                    (this.ci ? this.ci.lower : null) !== initialCILower ||
+                    (this.ci ? this.ci.upper : null) !== initialCIUpper ||
+                    this.samples.length !== initialSamplesLength) {
+                    stateChangedForDisplay = true;
+                }
+            }
         }
 
+        // If the displayable state changed, notify elements and consider it a change for dependents.
         if (stateChangedForDisplay) {
             this.notifyElementsToRefresh();
+            dataChangedForDependents = true; // Any significant display change might affect dependents.
         }
 
         if (dataChangedForDependents) {
             this._triggerDependentsUpdate(cellsCollection, !!this.errorState);
-            return true; 
+            return true; // Indicates that this cell's state changed in a way that might affect others.
         }
         
-        return false; 
+        return false; // No significant change occurred that would affect dependents.
     }
 
     setError(errorMessage, isDepError = false) {
