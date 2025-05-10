@@ -16,7 +16,7 @@
     background-color: #f9f9f9;
 }
 
-:host([full-width-active="true"]) {
+:host([full-width-active]) { /* Changed selector to check for attribute presence */
     display: block;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
