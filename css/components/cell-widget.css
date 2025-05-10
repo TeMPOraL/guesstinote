@@ -13,7 +13,7 @@ g-cell, g-ref {
     margin: 2px;
     font-family: sans-serif; /* Default font for cell content */
     font-size: 0.9rem;
-    vertical-align: middle;
+    vertical-align: baseline; /* Changed from middle to baseline */
     background-color: #f9f9f9;
 }
 
