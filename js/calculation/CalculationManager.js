@@ -53,11 +53,50 @@ const CalculationManager = (() => {
             // console.log("CalculationManager: Cell calculations complete. CellsCollection state:", JSON.parse(JSON.stringify(currentCells)));
         },
 
-        // The pruneCells method will be moved here later if desired.
-        // For now, keeping it in main.js to minimize changes in one go.
-        pruneCells: function(activeCellIds, cellsCollection) {
-            // Placeholder for pruning logic.
-            console.warn("CalculationManager.pruneCells is a placeholder. Logic still in main.js");
+        pruneCellsCollection: function() {
+            // Prune CellsCollection: Remove cells whose <g-cell> tags are no longer in the previewPane
+            // This function needs access to the previewPane DOM element.
+            // For now, we'll assume it can get it or it's passed, but ideally,
+            // CalculationManager shouldn't directly access DOM elements outside its scope.
+            // This might indicate a need for a higher-level orchestrator or event system.
+            // For this refactor step, we'll replicate the logic and address DOM access later if needed.
+            const previewPane = document.getElementById('previewPane'); // Direct DOM access - consider alternatives
+            if (!previewPane) {
+                console.error("CalculationManager.pruneCellsCollection: previewPane not found.");
+                return;
+            }
+
+            const activeCellIds = new Set();
+            previewPane.querySelectorAll('g-cell').forEach(el => {
+                const id = el.getAttribute('id');
+                if (id) activeCellIds.add(id);
+            });
+    
+            const currentCells = CellsCollectionManager.getCollection();
+            for (const id in currentCells) {
+                if (!activeCellIds.has(id)) {
+                    // console.log(`CalculationManager: Pruning cell ${id} from CellsCollection.`);
+                    const cellToRemove = CellsCollectionManager.getCell(id);
+                    if (cellToRemove) {
+                        // Notify dependents that this cell is gone
+                        cellToRemove.dependents.forEach(depId => {
+                            const dependentCell = CellsCollectionManager.getCell(depId);
+                            if (dependentCell) {
+                                dependentCell.dependencies.delete(id);
+                                dependentCell.needsReevaluation = true; 
+                            }
+                        });
+                        // Remove from its dependencies' dependents list
+                         cellToRemove.dependencies.forEach(depId => {
+                            const dependencyCell = CellsCollectionManager.getCell(depId);
+                            if (dependencyCell) {
+                                dependencyCell.dependents.delete(id);
+                            }
+                        });
+                    }
+                    CellsCollectionManager.removeCell(id); 
+                }
+            }
         }
     };
 })();

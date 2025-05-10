@@ -9,7 +9,7 @@ The JavaScript code will be reorganized into more focused modules,
 typically within subdirectories reflecting their primary domain.
 
 ### 1.  Core Application & Orchestration:
-    *   `js/main.js`: (Retains name, but delegates more) `[/]`
+    *   `js/main.js`: (Retains name, but delegates more) `[x]`
         *   Responsibilities: Application entry point, initialization, top-level UI event listeners (doc name, global samples, main buttons), orchestration of the main processing loop (delegating to CalculationManager). Manages the Guesstinote global API object.
         *   Why: Centralizes application startup and high-level UI interaction.
 
@@ -44,8 +44,8 @@ typically within subdirectories reflecting their primary domain.
         *   Why: Isolates general statistical calculations.
 
 ### 5.  Reactivity & Calculation Management:
-    *   `js/calculation/CalculationManager.js`: (New module) `[/]`
-        *   Responsibilities: Manages the overall calculation lifecycle. Runs the iterative processing loop for all cells. Orchestrates calls to `Cell.processFormula()`. Manages updates to the dependency graph (potentially by providing services to `Cell.js` or by directly manipulating cell dependency/dependent lists). Triggers recalculation of dependent cells.
+    *   `js/calculation/CalculationManager.js`: (New module) `[x]`
+        *   Responsibilities: Manages the overall calculation lifecycle. Runs the iterative processing loop for all cells. Orchestrates calls to `Cell.processFormula()`. Handles pruning of cells. Manages updates to the dependency graph (primarily by facilitating the environment where `Cell.js` updates its own dependencies/dependents during `processFormula`). Triggers recalculation of dependent cells (indirectly, by `Cell.js` during its processing).
         *   Why: Centralizes the complex logic of reactive updates and the calculation flow across all cells.
 
 ### 6.  Rendering & UI Components:
