@@ -74,6 +74,32 @@ const Parser = {
         // A proper parser would need to handle nesting, escaping, and context.
 
         return definitions; // Returns an array of found cell definition objects
+    },
+
+    parseSingleCellDefinition: function(rawText) {
+        // Parses a single, complete cell definition string.
+        // e.g., "[ID|Name][Formula]" or "[Name][Formula]"
+        this.cellDefinitionRegex.lastIndex = 0; // Reset regex state
+        const match = this.cellDefinitionRegex.exec(rawText.trim());
+
+        if (match && match[0].length === rawText.trim().length) { // Ensure the regex consumes the whole string
+            const idPart = match[1]; 
+            const namePart = match[2];
+            const formulaPart = match[3];
+
+            const cellId = idPart ? idPart.trim() : namePart.trim();
+            const displayName = namePart.trim();
+            const formula = formulaPart.trim();
+
+            return {
+                id: cellId,
+                displayName: displayName,
+                formula: formula,
+                rawText: rawText // Original rawText
+            };
+        }
+        console.warn("Could not parse single cell definition from rawText:", rawText);
+        return null; // Or throw an error
     }
 };
 

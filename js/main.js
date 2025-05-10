@@ -58,31 +58,66 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const key in CellsCollection) {
             delete CellsCollection[key];
         }
-
-        let newHtml = editorContent; // Start with current HTML
         
-        // Create a temporary div to parse and manipulate HTML structure safely
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = editorContent;
 
-        // Walk the DOM tree of tempDiv
-        const walk = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
-        let node;
-        const nodesToProcess = [];
-        while(node = walk.nextNode()) {
-            nodesToProcess.push(node);
-        }
+        // Phase 1: Discover cells from existing spans and new raw text
+        // We need to process nodes carefully. Walking and modifying can be tricky.
+        // Let's iterate multiple times or use a method that collects all nodes first.
+        
+        const allNodes = Array.from(tempDiv.querySelectorAll('*')); // Get all elements
+        // Add top-level text nodes as well. querySelectorAll('*') doesn't get text nodes directly under tempDiv.
+        tempDiv.childNodes.forEach(child => {
+            if (child.nodeType === Node.TEXT_NODE) {
+                allNodes.push(child); // This isn't perfect, order might be an issue.
+                                      // A full TreeWalker approach is more robust.
+            }
+        });
+        // For simplicity, let's use a two-pass approach on tempDiv:
+        // Pass 1.1: Identify existing cell spans, create Cell objects, replace span with fresh render.
+        const existingCellSpans = Array.from(tempDiv.querySelectorAll('.guesstimate-cell'));
+        existingCellSpans.forEach(span => {
+            const rawText = span.dataset.rawText;
+            if (rawText) {
+                const def = Parser.parseSingleCellDefinition(rawText);
+                if (def) {
+                    const cell = _createOrUpdateCell(def.id, def.displayName, def.formula, def.rawText);
+                    const newCellSpan = Renderer.renderCell(cell);
+                    if (span.parentNode) {
+                        span.parentNode.replaceChild(newCellSpan, span);
+                    }
+                } else {
+                    console.warn(`Failed to parse rawText from existing span: ${rawText}`, span);
+                    // Keep the old span or replace with error placeholder? For now, keep.
+                }
+            }
+        });
 
-        let modified = false;
+        // Pass 1.2: Process text nodes for new cell definitions.
+        // This needs to be done carefully after spans are potentially replaced.
+        // Re-walk for text nodes in the potentially modified tempDiv.
+        const textNodesToProcess = [];
+        const textWalker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false);
+        let tn;
+        while(tn = textWalker.nextNode()) {
+            // Ensure text node is not inside a cell we just processed or an already existing cell.
+            // The closest check should be sufficient.
+            if (tn.parentNode && !tn.parentNode.closest('.guesstimate-cell')) {
+                 textNodesToProcess.push(tn);
+            }
+        }
+        
         // Process text nodes in reverse to handle modifications safely
-        for (let i = nodesToProcess.length - 1; i >= 0; i--) {
-            const textNode = nodesToProcess[i];
-            if (textNode.parentNode && textNode.parentNode.closest('.guesstimate-cell')) {
-                continue; // Skip text inside already rendered cells
+        for (let i = textNodesToProcess.length - 1; i >= 0; i--) {
+            const textNode = textNodesToProcess[i];
+            // Double check parent, as DOM might have shifted if previous text nodes created block elements.
+            if (!textNode.parentNode || textNode.parentNode.closest('.guesstimate-cell')) {
+                continue; 
             }
 
             const textContent = textNode.textContent;
-            Parser.cellDefinitionRegex.lastIndex = 0;
+            Parser.cellDefinitionRegex.lastIndex = 0; // Reset regex
             let match;
             const cellMatchesInNode = [];
             while((match = Parser.cellDefinitionRegex.exec(textContent)) !== null) {
@@ -91,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             for (let j = cellMatchesInNode.length - 1; j >= 0; j--) {
                 const currentMatch = cellMatchesInNode[j];
-                const rawText = currentMatch[0];
+                const rawDefText = currentMatch[0];
                 const idPart = currentMatch[1];
                 const namePart = currentMatch[2];
                 const formulaPart = currentMatch[3];
@@ -100,21 +135,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const displayName = namePart.trim();
                 const formula = formulaPart.trim();
 
-                const cell = _createOrUpdateCell(cellId, displayName, formula, rawText);
-                const cellSpan = Renderer.renderCell(cell);
-                _replaceTextRangeWithNode(textNode, currentMatch.index, rawText.length, cellSpan);
-                modified = true;
+                const cell = _createOrUpdateCell(cellId, displayName, formula, rawDefText);
+                const newSpan = Renderer.renderCell(cell);
+                _replaceTextRangeWithNode(textNode, currentMatch.index, rawDefText.length, newSpan);
             }
         }
         
-        if (modified) {
-            // If modifications happened, update the actual editor's content
-            // This replaces the entire content, so cursor position is lost.
-            // This is acceptable for initial load.
-            window.Guesstinote.setEditorContent(tempDiv.innerHTML);
-        }
+        // Update the main editor content once after all initial parsing and span creation/replacement
+        window.Guesstinote.setEditorContent(tempDiv.innerHTML);
         
-        // Iterative recalculation to handle dependencies
+        // Phase 2: Iterative recalculation to handle dependencies
         // This is a simple approach. A more sophisticated one would use a dirty flag or topological sort.
         const maxIterations = Object.keys(CellsCollection).length + 5; // Heuristic for iterations
         console.log(`Starting iterative recalculation, max iterations: ${maxIterations}`);
@@ -137,52 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Final render pass after all calculations have settled
-        // This is needed because cell.processFormula() might trigger updates,
-        // but the DOM for the *current* cell being processed in the loop above
-        // isn't updated until its turn. This ensures all DOM elements reflect final state.
-        // This is inefficient and will be improved with targeted rendering.
-        console.log("Performing final render pass after iterative calculations.");
-        const finalEditorContent = document.createElement('div');
-        finalEditorContent.innerHTML = window.Guesstinote.getEditorContent(); // Get current state which might have raw text
-        
-        const finalWalk = document.createTreeWalker(finalEditorContent, NodeFilter.SHOW_TEXT, null, false);
-        let finalNode;
-        const finalTextNodes = [];
-        while(finalNode = finalWalk.nextNode()) {
-            finalTextNodes.push(finalNode);
-        }
-        let finalRenderModified = false;
-        for (let i = finalTextNodes.length - 1; i >= 0; i--) {
-            const textNode = finalTextNodes[i];
-            if (textNode.parentNode && textNode.parentNode.closest('.guesstimate-cell')) continue;
-
-            const textContent = textNode.textContent;
-            Parser.cellDefinitionRegex.lastIndex = 0;
-            let match;
-            const cellMatchesInNode = [];
-            while((match = Parser.cellDefinitionRegex.exec(textContent)) !== null) cellMatchesInNode.push(match);
-
-            for (let j = cellMatchesInNode.length - 1; j >= 0; j--) {
-                const currentMatch = cellMatchesInNode[j];
-                const rawText = currentMatch[0];
-                const idPart = currentMatch[1];
-                const namePart = currentMatch[2];
-                // formulaPart is not needed here as cell already exists and has its formula
-
-                const cellId = idPart ? idPart.trim() : namePart.trim();
-                const cell = CellsCollection[cellId];
-                if (cell) { // Only render if cell exists in collection
-                    const cellSpan = Renderer.renderCell(cell);
-                    _replaceTextRangeWithNode(textNode, currentMatch.index, rawText.length, cellSpan);
-                    finalRenderModified = true;
-                }
-            }
-        }
-        if (finalRenderModified) {
-             window.Guesstinote.setEditorContent(finalEditorContent.innerHTML);
-        }
-
+        // Phase 3: The "Final Render Pass" is removed.
+        // The iterative calculation loop (Phase 2) now handles DOM updates for each cell
+        // via cell.processFormula() -> window.Guesstinote.updateCellDOM().
+        // The initial discovery (Phase 1) ensures all definitions are converted to spans.
 
         console.log("Full document processing complete. CellsCollection:", CellsCollection);
     }
