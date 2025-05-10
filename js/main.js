@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const importDocBtn = document.getElementById('importDocBtn');
     const globalSamplesInput = document.getElementById('globalSamplesInput'); // Changed from 'globalSamples'
 
-    const CellsCollection = {}; // Global store for Cell objects
+    // const CellsCollection = {}; // Global store for Cell objects - REMOVED, use CellsCollectionManager
     let processingTimeout = null;
     const PROCESSING_DELAY = 300; // ms to wait after input before processing full calculations
 
@@ -44,42 +44,42 @@ document.addEventListener('DOMContentLoaded', () => {
             if (id) activeCellIds.add(id);
         });
 
-        for (const id in CellsCollection) {
+        const currentCells = CellsCollectionManager.getCollection();
+        for (const id in currentCells) {
             if (!activeCellIds.has(id)) {
                 // console.log(`Pruning cell ${id} from CellsCollection.`);
-                const cellToRemove = CellsCollection[id];
+                const cellToRemove = CellsCollectionManager.getCell(id); // Get cell from manager
                 if (cellToRemove) {
                     // Notify dependents that this cell is gone
                     cellToRemove.dependents.forEach(depId => {
-                        const dependentCell = CellsCollection[depId];
+                        const dependentCell = CellsCollectionManager.getCell(depId); // Get cell from manager
                         if (dependentCell) {
                             dependentCell.dependencies.delete(id);
                             dependentCell.needsReevaluation = true; // Mark for re-evaluation
-                            // Optionally, set an error on the dependent cell
-                            // dependentCell.setError(`Dependency '${id}' removed.`, true);
                         }
                     });
                     // Remove from its dependencies' dependents list
                      cellToRemove.dependencies.forEach(depId => {
-                        const dependencyCell = CellsCollection[depId];
+                        const dependencyCell = CellsCollectionManager.getCell(depId); // Get cell from manager
                         if (dependencyCell) {
                             dependencyCell.dependents.delete(id);
                         }
                     });
                 }
-                delete CellsCollection[id];
+                CellsCollectionManager.removeCell(id); // Remove cell using manager
             }
         }
     }
 
     function processCellCalculations() {
         // console.log('Processing all cell calculations...');
+        const currentCells = CellsCollectionManager.getCollection();
         
-        for (const id in CellsCollection) {
-            CellsCollection[id].prepareForReevaluation();
+        for (const id in currentCells) {
+            currentCells[id].prepareForReevaluation();
         }
         
-        const cellsToProcess = Object.keys(CellsCollection);
+        const cellsToProcess = Object.keys(currentCells);
         let maxIterations = cellsToProcess.length * 2 + 10; 
         let iterations = 0;
         let changedInIteration = true;
@@ -90,33 +90,28 @@ document.addEventListener('DOMContentLoaded', () => {
             // console.log(`Calculation iteration ${iterations}`);
 
             cellsToProcess.forEach(cellId => {
-                const cell = CellsCollection[cellId];
-                // Cell might have been pruned if its element was faulty
+                const cell = currentCells[cellId];
                 if (cell && (cell.needsReevaluation || !cell.isProcessedInCurrentCycle())) { 
-                    if (cell.processFormula(CellsCollection)) { // Pass collection for dependency lookup
+                    // processFormula defaults to using CellsCollectionManager.getCollection() if no arg passed,
+                    // or we can pass currentCells explicitly.
+                    if (cell.processFormula(currentCells)) { 
                         changedInIteration = true;
                     }
                 }
             });
-            // Reset processed flag for all cells for the next iteration pass,
-            // but only if they weren't marked as fully processed in this cycle.
-            // This is subtle: processFormula sets _processedInCurrentCycle = true.
-            // We need to allow multiple passes for dependency chains.
-            // The `cell.needsReevaluation` flag is key.
-            // A simpler approach: always reset for all.
-            Object.values(CellsCollection).forEach(c => c.resetProcessedFlag());
+            Object.values(currentCells).forEach(c => c.resetProcessedFlag());
         }
 
         if (iterations >= maxIterations) {
             console.warn("Max calculation iterations reached. Possible circular dependency or instability.");
-            Object.values(CellsCollection).forEach(cell => {
+            Object.values(currentCells).forEach(cell => {
                 if (cell && !cell.isProcessedInCurrentCycle() && !cell.errorState) {
                     // cell.setError("Processing timeout or circular dependency suspected.", false);
                     // cell.notifyElementsToRefresh(); // Ensure error state is rendered
                 }
             });
         }
-        // console.log("Cell calculations complete. CellsCollection state:", JSON.parse(JSON.stringify(CellsCollection)));
+        // console.log("Cell calculations complete. CellsCollection state:", JSON.parse(JSON.stringify(currentCells)));
     }
 
     function setupEventListeners() {
@@ -132,8 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.Config && typeof window.Config.updateGlobalSamples === 'function') {
                 Config.updateGlobalSamples(newSampleCount);
             }
-
-            Object.values(CellsCollection).forEach(cell => {
+            const currentCells = CellsCollectionManager.getCollection();
+            Object.values(currentCells).forEach(cell => {
                 if (cell.type !== 'constant' && cell.type !== 'formulaOnlyConstant') {
                      cell.samples = []; 
                 }

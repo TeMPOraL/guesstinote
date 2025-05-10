@@ -254,27 +254,8 @@ class Cell {
         let stateChangedForDisplay = false;
         let dataChangedForDependents = false; 
 
-        if (this.errorState !== initialErrorState || this.isDependencyError !== initialIsDependencyError) {
-            stateChangedForDisplay = true;
-            dataChangedForDependents = true; // Error changes are significant for dependents
-        } else if (this.errorState === null) { // No error, check for data changes
-            if (this.type === 'constant' || this.type === 'formulaOnlyConstant') {
-                if (this.value !== initialValue) {
-                    stateChangedForDisplay = true;
-                    dataChangedForDependents = true;
-                }
-            } else { // Distribution type
-                if (this.mean !== initialMean ||
-                    (this.ci ? this.ci.lower : null) !== initialCILower ||
-                    (this.ci ? this.ci.upper : null) !== initialCIUpper ||
-                    this.samples.length !== initialSamplesLength) {
-                    stateChangedForDisplay = true;
-                    dataChangedForDependents = true;
-                }
-            }
-        }
-
         // Determine if a display refresh is needed based on actual changes.
+        // This block correctly determines if the visual representation of the cell needs an update.
         if (errorWasCleared || 
             this.errorState !== initialErrorState || 
             this.isDependencyError !== initialIsDependencyError) {
@@ -288,17 +269,40 @@ class Cell {
                 if (this.mean !== initialMean ||
                     (this.ci ? this.ci.lower : null) !== initialCILower ||
                     (this.ci ? this.ci.upper : null) !== initialCIUpper ||
-                    this.samples.length !== initialSamplesLength) {
+                    this.samples.length !== initialSamplesLength) { // Compare samples length as a proxy for content change
                     stateChangedForDisplay = true;
                 }
             }
         }
 
-        // If the displayable state changed, notify elements and consider it a change for dependents.
+        // If the displayable state changed, notify elements.
         if (stateChangedForDisplay) {
             this.notifyElementsToRefresh();
-            dataChangedForDependents = true; // Any significant display change might affect dependents.
+            // Any change that affects display might also affect dependents.
+            // More precise logic for dataChangedForDependents could be:
+            // - Error state changed: dataChangedForDependents = true
+            // - Value/Mean/CI/Samples content changed (not just length): dataChangedForDependents = true
+            // For now, linking it to stateChangedForDisplay is a safe bet.
+            dataChangedForDependents = true; 
         }
+        // An alternative for dataChangedForDependents (more precise):
+        // if (this.errorState !== initialErrorState || this.isDependencyError !== initialIsDependencyError) {
+        //     dataChangedForDependents = true;
+        // } else if (this.errorState === null) {
+        //     if (this.type === 'constant' || this.type === 'formulaOnlyConstant') {
+        //         if (this.value !== initialValue) dataChangedForDependents = true;
+        //     } else { // Distribution type
+        //         // A more thorough check would compare sample arrays if necessary,
+        //         // but mean/ci/length is usually sufficient.
+        //         if (this.mean !== initialMean || 
+        //             (this.ci ? this.ci.lower : null) !== initialCILower ||
+        //             (this.ci ? this.ci.upper : null) !== initialCIUpper ||
+        //             this.samples.length !== initialSamplesLength) { // Or a deep compare of samples
+        //             dataChangedForDependents = true;
+        //         }
+        //     }
+        // }
+
 
         if (dataChangedForDependents) {
             this._triggerDependentsUpdate(cellsCollection, !!this.errorState);
