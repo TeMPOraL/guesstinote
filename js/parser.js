@@ -100,6 +100,25 @@ const Parser = {
         }
         console.warn("Could not parse single cell definition from rawText:", rawText);
         return null; // Or throw an error
+    },
+
+    parseSingleCellReference: function(rawText) {
+        // Parses a single, complete cell reference string.
+        // e.g., "[#ID]" or "[#ID|Custom Name]"
+        this.cellReferenceRegex.lastIndex = 0; // Reset regex state
+        const match = this.cellReferenceRegex.exec(rawText.trim());
+
+        if (match && match[0].length === rawText.trim().length) { // Ensure the regex consumes the whole string
+            const id = match[1].trim();
+            const customDisplayName = match[2] ? match[2].trim() : undefined;
+
+            return {
+                id: id,
+                customDisplayName: customDisplayName,
+                rawText: rawText.trim() // Original rawText
+            };
+        }
+        return null; // Not a valid reference string
     }
 };
 
