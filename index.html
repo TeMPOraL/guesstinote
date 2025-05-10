@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="css/components/cell-widget.css">
     <link rel="stylesheet" href="css/components/histogram.css">
     <!-- <link rel="stylesheet" href="css/style.css"> --> {/* Original stylesheet, now replaced */}
+
+    <!-- CodeMirror CSS -->
+    <link rel="stylesheet" href="vendor/codemirror-5.65.19/lib/codemirror.css">
 </head>
 <body>
     <header>
@@ -36,6 +39,10 @@
         <p>Guesstinote - Client-Side Probabilistic Notepad</p>
         <p>Global Samples: <input type="number" id="globalSamplesInput" value="5000" min="100" step="100"></p>
     </footer>
+
+    <!-- CodeMirror JS -->
+    <script src="vendor/codemirror-5.65.19/lib/codemirror.js"></script>
+    <script src="vendor/codemirror-5.65.19/mode/htmlmixed/htmlmixed.js"></script>
 
     <!-- Core Modules -->
     <script src="js/config.js"></script>
