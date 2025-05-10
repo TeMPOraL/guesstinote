@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 editorWrapperElement.style.flexBasis = `${newEditorWidth}px`;
                 // No need to set previewPane's flexBasis if it's flex: 1, it will adjust.
-                cmEditor.refresh(); // Notify CodeMirror to update its layout
+                // cmEditor.refresh(); // Moved to onMouseUp
             }
 
             function onMouseUp() {
@@ -100,6 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Remove global styles
                 document.body.style.userSelect = '';
                 document.body.style.cursor = '';
+
+                cmEditor.refresh(); // Notify CodeMirror to update its layout once at the end
 
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
