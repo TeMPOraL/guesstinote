@@ -50,8 +50,8 @@ main {
     flex-direction: row; /* Lays out children (editor, preview) side-by-side */
     height: calc(100vh - 220px); /* Adjust 220px based on actual combined height of header and footer */
     min-height: 400px;
-    max-width: 1100px; 
-    margin: 20px auto; /* Centers the main block */
+    /* max-width: 1100px; removed to allow full width */
+    margin: 20px 0; /* Removed auto margins for horizontal, keeps vertical 20px */
     background: #fff;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
     border: 1px solid #ccc; /* Border for the combined editor/preview area */
