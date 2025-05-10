@@ -65,25 +65,35 @@ const Persistence = {
         }
     },
 
-    loadTutorialDocument: function() {
+    loadTutorialDocument: async function() { // Changed to an async function
         console.log("Loading tutorial document...");
         // Assumes Tutorial is globally available
         if (window.Tutorial && typeof window.Tutorial.getContent === 'function') {
-            const tutorialContent = window.Tutorial.getContent();
-            const tutorialName = window.Tutorial.getName ? window.Tutorial.getName() : "Tutorial";
+            try {
+                const tutorialContent = await window.Tutorial.getContent(); // Await the promise
+                const tutorialName = window.Tutorial.getName ? window.Tutorial.getName() : "Tutorial";
             
-            window.Guesstinote.setEditorContent(tutorialContent);
-            window.Guesstinote.setDocName(tutorialName);
-            window.history.replaceState(null, null, '#'); 
-            localStorage.removeItem(this.LAST_OPENED_KEY); 
-            this.hasUnsavedChanges = false;
+                window.Guesstinote.setEditorContent(tutorialContent);
+                window.Guesstinote.setDocName(tutorialName);
+                window.history.replaceState(null, null, '#'); 
+                localStorage.removeItem(this.LAST_OPENED_KEY); 
+                this.hasUnsavedChanges = false;
             
-            if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
-                window.Guesstinote.refreshEditor();
+                if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
+                    window.Guesstinote.refreshEditor();
+                }
+            } catch (error) {
+                console.error("Error setting up tutorial document from fetched content:", error);
+                window.Guesstinote.setEditorContent("<h1>Error</h1><p>Failed to display tutorial content after loading.</p>");
+                window.Guesstinote.setDocName("Error");
+                this.hasUnsavedChanges = false;
+                 if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
+                    window.Guesstinote.refreshEditor();
+                }
             }
         } else {
-            console.warn("Tutorial content not available.");
-            window.Guesstinote.setEditorContent("<h1>Welcome!</h1>");
+            console.warn("Tutorial content provider (Tutorial.getContent) not available."); // Updated log
+            window.Guesstinote.setEditorContent("<h1>Error</h1><p>Tutorial module is not available.</p>"); // Updated fallback
             window.Guesstinote.setDocName("Unsaved Document");
             this.hasUnsavedChanges = false; 
             if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
@@ -96,7 +106,7 @@ const Persistence = {
         if (this.hasUnsavedChanges && !confirm("You have unsaved changes. Create a new document anyway?")) {
             return;
         }
-        Persistence.loadTutorialDocument(); 
+        await Persistence.loadTutorialDocument(); // Await the async tutorial loading
         Persistence.currentDocId = null; 
         window.history.replaceState(null, null, '#');
     },
