@@ -73,20 +73,21 @@ class Cell {
             }
         });
 
-        // Add this cell to dependents list of new dependencies
+        // Add this cell to dependents list of all current dependencies
         newDependencies.forEach(depId => {
-            if (!oldDependencies.has(depId)) {
-                const depCell = cellsCollection[depId];
-                if (depCell) {
-                    depCell.dependents.add(this.id);
-                } else {
-                    // This case implies a dependency on a non-existent cell.
-                    // The evaluator will catch this, but good to be aware.
-                    console.warn(`Cell ${this.id} lists dependency on non-existent cell ${depId}`);
-                }
+            const depCell = cellsCollection[depId];
+            if (depCell) {
+                depCell.dependents.add(this.id); // Ensure this cell is listed as a dependent
+            } else {
+                // This can happen if a cell is defined that refers to a not-yet-defined cell.
+                // The evaluator will throw an "Unknown cell identifier" error, which is handled.
+                // During the iterative processing in processFullDocument, this link
+                // should eventually be established when this cell (the one calling _updateDependencyLinks)
+                // is re-processed after the dependency cell has been created.
+                console.warn(`Cell ${this.id} attempting to link to dependency ${depId}, but ${depId} not found in cellsCollection yet.`);
             }
         });
-        this.dependencies = newDependencies;
+        this.dependencies = newDependencies; // Update the cell's own list of dependencies
     }
 
     _triggerDependentsUpdate(cellsCollection) {
