@@ -10,21 +10,57 @@ const CalculationManager = (() => {
             // console.log("CalculationManager initialized.");
         },
 
-        processAllCells: function(cellsCollection) {
-            // Placeholder for the main calculation loop.
-            // This will be moved from main.js
-            console.warn("CalculationManager.processAllCells is a placeholder.");
-            // For now, to avoid breaking main.js, it can call the old global function if needed,
-            // or main.js will call methods on this manager.
+        processCellCalculations: function() {
+            // console.log('CalculationManager: Processing all cell calculations...');
+            const currentCells = CellsCollectionManager.getCollection();
+            
+            for (const id in currentCells) {
+                currentCells[id].prepareForReevaluation();
+            }
+            
+            const cellsToProcess = Object.keys(currentCells);
+            let maxIterations = cellsToProcess.length * 2 + 10; 
+            let iterations = 0;
+            let changedInIteration = true;
+
+            while (changedInIteration && iterations < maxIterations) {
+                changedInIteration = false;
+                iterations++;
+                // console.log(`CalculationManager: Calculation iteration ${iterations}`);
+
+                cellsToProcess.forEach(cellId => {
+                    const cell = currentCells[cellId];
+                    if (cell && (cell.needsReevaluation || !cell.isProcessedInCurrentCycle())) { 
+                        // processFormula defaults to using CellsCollectionManager.getCollection() if no arg passed,
+                        // or we can pass currentCells explicitly.
+                        if (cell.processFormula(currentCells)) { 
+                            changedInIteration = true;
+                        }
+                    }
+                });
+                Object.values(currentCells).forEach(c => c.resetProcessedFlag());
+            }
+
+            if (iterations >= maxIterations) {
+                console.warn("CalculationManager: Max calculation iterations reached. Possible circular dependency or instability.");
+                Object.values(currentCells).forEach(cell => {
+                    if (cell && !cell.isProcessedInCurrentCycle() && !cell.errorState) {
+                        // cell.setError("Processing timeout or circular dependency suspected.", false);
+                        // cell.notifyElementsToRefresh(); // Ensure error state is rendered
+                    }
+                });
+            }
+            // console.log("CalculationManager: Cell calculations complete. CellsCollection state:", JSON.parse(JSON.stringify(currentCells)));
         },
 
+        // The pruneCells method will be moved here later if desired.
+        // For now, keeping it in main.js to minimize changes in one go.
         pruneCells: function(activeCellIds, cellsCollection) {
             // Placeholder for pruning logic.
-            console.warn("CalculationManager.pruneCells is a placeholder.");
+            console.warn("CalculationManager.pruneCells is a placeholder. Logic still in main.js");
         }
-        // Add more methods as logic is moved from main.js
     };
 })();
 
 window.CalculationManager = CalculationManager; // Expose globally
-console.log('js/calculation/CalculationManager.js loaded (placeholder).');
+console.log('js/calculation/CalculationManager.js loaded.');

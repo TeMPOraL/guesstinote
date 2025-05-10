@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // or a ready state from custom elements, but that adds complexity.
         setTimeout(() => {
             pruneCellsCollection();
-            processCellCalculations();
+            CalculationManager.processCellCalculations(); // Use CalculationManager
         }, 50); // Small delay, adjust if needed
     }
 
@@ -71,48 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function processCellCalculations() {
-        // console.log('Processing all cell calculations...');
-        const currentCells = CellsCollectionManager.getCollection();
-        
-        for (const id in currentCells) {
-            currentCells[id].prepareForReevaluation();
-        }
-        
-        const cellsToProcess = Object.keys(currentCells);
-        let maxIterations = cellsToProcess.length * 2 + 10; 
-        let iterations = 0;
-        let changedInIteration = true;
-
-        while (changedInIteration && iterations < maxIterations) {
-            changedInIteration = false;
-            iterations++;
-            // console.log(`Calculation iteration ${iterations}`);
-
-            cellsToProcess.forEach(cellId => {
-                const cell = currentCells[cellId];
-                if (cell && (cell.needsReevaluation || !cell.isProcessedInCurrentCycle())) { 
-                    // processFormula defaults to using CellsCollectionManager.getCollection() if no arg passed,
-                    // or we can pass currentCells explicitly.
-                    if (cell.processFormula(currentCells)) { 
-                        changedInIteration = true;
-                    }
-                }
-            });
-            Object.values(currentCells).forEach(c => c.resetProcessedFlag());
-        }
-
-        if (iterations >= maxIterations) {
-            console.warn("Max calculation iterations reached. Possible circular dependency or instability.");
-            Object.values(currentCells).forEach(cell => {
-                if (cell && !cell.isProcessedInCurrentCycle() && !cell.errorState) {
-                    // cell.setError("Processing timeout or circular dependency suspected.", false);
-                    // cell.notifyElementsToRefresh(); // Ensure error state is rendered
-                }
-            });
-        }
-        // console.log("Cell calculations complete. CellsCollection state:", JSON.parse(JSON.stringify(currentCells)));
-    }
+    // processCellCalculations function has been moved to CalculationManager.js
 
     function setupEventListeners() {
         htmlEditor.addEventListener('input', () => {
@@ -134,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 cell.needsReevaluation = true; // Mark all for re-evaluation
             });
-            processCellCalculations(); 
+            CalculationManager.processCellCalculations(); // Use CalculationManager
             Persistence.markUnsavedChanges();
         });
         
@@ -179,6 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
         Config.updateGlobalSamples(parseInt(globalSamplesInput.value, 10) || 5000); // Initial sync
     }
 
+    // Initialize CalculationManager
+    if (window.CalculationManager && typeof window.CalculationManager.initialize === 'function') {
+        CalculationManager.initialize();
+    }
 
     initializeApp();
 });
