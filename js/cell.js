@@ -244,41 +244,58 @@ class Cell {
             }
         }
 
-        this._processedInCurrentCycle = true;
-        let dataChangedSignificantEnoughForDependents = false;
+        this._processedInCurrentCycle = true; // Mark as processed in this cycle.
+
+        let stateChangedForDisplay = false;
+        let dataChangedForDependents = false; 
 
         if (this.errorState !== initialErrorState || this.isDependencyError !== initialIsDependencyError) {
-            dataChangedSignificantEnoughForDependents = true;
+            stateChangedForDisplay = true;
+            dataChangedForDependents = true; // Error changes are significant for dependents
         } else if (this.errorState === null) { // No error, check for data changes
             if (this.type === 'constant' || this.type === 'formulaOnlyConstant') {
-                if (this.value !== initialValue) dataChangedSignificantEnoughForDependents = true;
-            } else { // Distribution
+                if (this.value !== initialValue) {
+                    stateChangedForDisplay = true;
+                    dataChangedForDependents = true;
+                }
+            } else { // Distribution type
                 if (this.mean !== initialMean ||
                     (this.ci ? this.ci.lower : null) !== initialCILower ||
                     (this.ci ? this.ci.upper : null) !== initialCIUpper ||
                     this.samples.length !== initialSamplesLength) {
-                    dataChangedSignificantEnoughForDependents = true;
+                    stateChangedForDisplay = true;
+                    dataChangedForDependents = true;
                 }
             }
         }
+
+        // If an error was cleared, it's a display change, even if data reverted to a pre-error state.
+        if (errorWasCleared) {
+            stateChangedForDisplay = true;
+        }
         
-        // Always notify own elements if its state (error or data) changed for display purposes.
-        if (dataChangedSignificantEnoughForDependents || errorWasCleared) {
+        // If this function was fully executed (didn't bail out early), it means processing occurred.
+        // If no specific data/error change was detected by the above conditions,
+        // but processing happened and the cell is not in an error state,
+        // it's still a "refresh" from a potentially uninitialized or "calculating" display state.
+        // This ensures that an initial render gets updated to the actual (potentially empty/null) result.
+        if (!stateChangedForDisplay && this.errorState === null) {
+            // This implies the cell was processed, and its state is now definitive (even if empty/null).
+            // This is important for the first time a cell is processed, or if it was calculating.
+            stateChangedForDisplay = true;
+        }
+
+        if (stateChangedForDisplay) {
             this.notifyElementsToRefresh();
         }
 
-        // Trigger dependents and determine return value for main processing loop
-        if (dataChangedSignificantEnoughForDependents) {
+        // Trigger dependents only if there was a data change significant for them.
+        if (dataChangedForDependents) {
             this._triggerDependentsUpdate(cellsCollection, !!this.errorState);
             return true; // Indicates a change that affects dependents or this cell's core output
         }
         
-        // If we reach here, data did NOT change significantly for dependents.
-        // An error might have been cleared, but the resulting data is the same as before the error was set
-        // (or the same as the last good state if it was a dependency error).
-        // In this case, the cell itself might need a rerender (handled by notifyElementsToRefresh if errorWasCleared),
-        // but it shouldn't cause the main loop to iterate further.
-        return false; 
+        return false; // No change significant enough for dependents.
     }
 
     setError(errorMessage, isDepError = false) {
