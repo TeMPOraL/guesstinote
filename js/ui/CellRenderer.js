@@ -121,7 +121,8 @@ const CellRenderer = {
         }
         
         // Part 4: Display Formula (for g-cell definitions)
-        if (!isReference && effectiveCell.rawFormula) {
+        // Only display the formula if it's not a direct number literal (e.g., show for "10+5" or "CellA", but not for "100")
+        if (!isReference && effectiveCell.rawFormula && (!effectiveCell.ast || effectiveCell.ast.type !== 'NumberLiteral')) {
             this._createAndAppendSpan(contentWrapper, 'formula-display', `(Formula: ${effectiveCell.rawFormula})`);
         }
         
