@@ -93,14 +93,3 @@ This section outlines the core files of the Guesstinote project, reflecting the 
 *   `js/parser.js`: (Largely Obsolete) Minimal role, may be removed later.
 *   `html/tutorial-content.html`: Contains the HTML for the tutorial document.
 
-Removed/Replaced files:
-*   `css/style.css` (Replaced by modular CSS files)
-*   `css/base/variables.css` (Removed as it was unused)
-*   `js/calculator.js` (Functionality moved to `js/math/*` and `js/config.js`)
-*   `js/cell.js` (Replaced by `js/cell/Cell.js`)
-*   `js/formula_parser.js` (Replaced by `js/formula/FormulaParser.js`)
-*   `js/evaluator.js` (Replaced by `js/formula/Evaluator.js`)
-*   `js/renderer.js` (Replaced by `js/ui/CellRenderer.js` and `js/ui/HistogramRenderer.js`)
-*   `js/persistence.js` (Replaced by `js/persistence/Persistence.js`)
-*   `js/tutorial.js` (Replaced by `js/utils/Tutorial.js`)
-
