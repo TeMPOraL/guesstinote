@@ -1,21 +1,10 @@
 class GRefElement extends HTMLElement {
     constructor() {
         super();
-        const shadowRoot = this.attachShadow({ mode: 'open' });
+        // Shadow DOM is no longer used. Content will be rendered directly into the element.
         this._targetCellId = null;
         this._targetCellInstance = null;
         this._isInitialized = false;
-
-        // Link external stylesheets
-        const cellWidgetStyles = document.createElement('link');
-        cellWidgetStyles.setAttribute('rel', 'stylesheet');
-        cellWidgetStyles.setAttribute('href', 'css/components/cell-widget.css');
-        shadowRoot.appendChild(cellWidgetStyles);
-
-        const histogramStyles = document.createElement('link');
-        histogramStyles.setAttribute('rel', 'stylesheet');
-        histogramStyles.setAttribute('href', 'css/components/histogram.css');
-        shadowRoot.appendChild(histogramStyles);
     }
 
     static get observedAttributes() {
@@ -27,7 +16,7 @@ class GRefElement extends HTMLElement {
         // console.log('g-ref connected, target id:', this._targetCellId);
 
         if (!this._targetCellId) {
-            this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-ref requires an 'id' attribute specifying the target cell.</span>`;
+            this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-ref requires an 'id' attribute specifying the target cell.</span>`; // Render error directly
             return;
         }
         this.subscribeToTargetCell();
@@ -45,7 +34,7 @@ class GRefElement extends HTMLElement {
             }
             this._targetCellId = newValue;
             if (!this._targetCellId) {
-                 this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-ref 'id' attribute cannot be empty.</span>`;
+                 this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-ref 'id' attribute cannot be empty.</span>`; // Render error directly
                  this._targetCellInstance = null; // No longer valid target
                  return;
             }
@@ -78,7 +67,7 @@ class GRefElement extends HTMLElement {
 
     renderDisplay() {
         if (!this._targetCellId && this._isInitialized) { 
-             this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-ref 'id' attribute is missing.</span>`;
+             this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-ref 'id' attribute is missing.</span>`; // Render error directly
              return;
         }
         
@@ -99,7 +88,8 @@ class GRefElement extends HTMLElement {
                 isFullWidth: isFullWidth
             });
         } else {
-            this.shadowRoot.innerHTML = `<span style="font-family: sans-serif;">${customDisplayName || this._targetCellId} (Renderer not available)</span>`;
+            // CellRenderer is responsible for populating 'this' (hostElement) directly now.
+            this.innerHTML = `<span style="font-family: sans-serif;">${customDisplayName || this._targetCellId} (Renderer not available)</span>`;
         }
     }
 

@@ -1,21 +1,10 @@
 class GCellElement extends HTMLElement {
     constructor() {
         super();
-        const shadowRoot = this.attachShadow({ mode: 'open' });
-        this._cellIdInternal = null; // Renamed to avoid conflict with HTMLElement's id property
+        // Shadow DOM is no longer used. Content will be rendered directly into the element.
+        this._cellIdInternal = null; 
         this._cellInstance = null;
         this._isInitialized = false;
-
-        // Link external stylesheets
-        const cellWidgetStyles = document.createElement('link');
-        cellWidgetStyles.setAttribute('rel', 'stylesheet');
-        cellWidgetStyles.setAttribute('href', 'css/components/cell-widget.css');
-        shadowRoot.appendChild(cellWidgetStyles);
-
-        const histogramStyles = document.createElement('link');
-        histogramStyles.setAttribute('rel', 'stylesheet');
-        histogramStyles.setAttribute('href', 'css/components/histogram.css');
-        shadowRoot.appendChild(histogramStyles);
     }
 
     static get observedAttributes() {
@@ -27,7 +16,7 @@ class GCellElement extends HTMLElement {
         // console.log(`g-cell connected: ${this._cellIdInternal}`);
 
         if (!this._cellIdInternal) {
-            this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell requires an 'id' attribute.</span>`;
+            this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell requires an 'id' attribute.</span>`; // Render error directly
             return;
         }
         this.updateCellDefinition(); // Create or update the Cell object
@@ -53,7 +42,7 @@ class GCellElement extends HTMLElement {
             }
             this._cellIdInternal = newValue;
             if (!this._cellIdInternal) { // New ID is null or empty
-                 this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell 'id' attribute cannot be empty.</span>`;
+                 this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell 'id' attribute cannot be empty.</span>`; // Render error directly
                  // If an old cell instance exists, it might need to be marked as error or removed from collection by main.js pruning
                  if (this._cellInstance) this._cellInstance.setError("ID removed or invalid");
                  this._cellInstance = null; // No longer valid
@@ -101,7 +90,7 @@ class GCellElement extends HTMLElement {
 
 
         if (formula === null) {
-            this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell '${this._cellIdInternal}' requires a 'formula' attribute.</span>`;
+            this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell '${this._cellIdInternal}' requires a 'formula' attribute.</span>`; // Render error directly
             if (this._cellInstance) { // If instance exists, mark it
                 this._cellInstance.setError("Missing formula attribute", false);
                 this._cellInstance.notifyElementsToRefresh();
@@ -139,11 +128,11 @@ class GCellElement extends HTMLElement {
 
     renderDisplay() {
         if (!this._cellIdInternal && this._isInitialized) {
-             this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell 'id' attribute is missing or invalid.</span>`;
+             this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell 'id' attribute is missing or invalid.</span>`; // Render error directly
              return;
         }
         if (this.getAttribute('formula') === null && this._isInitialized) {
-             this.shadowRoot.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell '${this._cellIdInternal}' is missing 'formula' attribute.</span>`;
+             this.innerHTML = `<span style="color:red; font-family: sans-serif;">Error: g-cell '${this._cellIdInternal}' is missing 'formula' attribute.</span>`; // Render error directly
              return;
         }
 
@@ -168,7 +157,9 @@ class GCellElement extends HTMLElement {
                 cellFormulaFromHost: this.getAttribute('formula')
             });
         } else {
-            this.shadowRoot.innerHTML = `<span style="font-family: sans-serif;">${this.getAttribute('name') || this._cellIdInternal} (Renderer not available)</span>`;
+            // CellRenderer is responsible for populating 'this' (hostElement) directly now.
+            // If CellRenderer is not available, this element will show a basic message.
+            this.innerHTML = `<span style="font-family: sans-serif;">${this.getAttribute('name') || this._cellIdInternal} (Renderer not available)</span>`;
         }
     }
 

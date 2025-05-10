@@ -1,10 +1,11 @@
 /* css/components/cell-widget.css */
+/* css/components/cell-widget.css */
 /* Styles for g-cell and g-ref host elements and their internal structure */
 /* (name, value, CI, formula display, error messages). */
 /* Includes states like error, dependency error. */
 
-/* Host element base styles */
-:host {
+/* Element base styles (formerly :host) */
+g-cell, g-ref {
     display: inline-block; /* Default display for cells/refs */
     padding: 3px 6px;
     border: 1px solid #ddd;
@@ -16,7 +17,8 @@
     background-color: #f9f9f9;
 }
 
-:host([full-width-active]) { /* Changed selector to check for attribute presence */
+g-cell[full-width-active], 
+g-ref[full-width-active] { /* Changed selector */
     display: block;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
@@ -24,16 +26,19 @@
     background-color: #fff;
 }
 
-/* Error state indicators on the host element */
-:host(.error-state-indicator) {
+/* Error state indicators on the elements (formerly :host(.class)) */
+g-cell.error-state-indicator, 
+g-ref.error-state-indicator {
     border-color: #ff3860; /* Matches Bulma's danger color */
     background-color: #fff5f7;
 }
-:host(.dependency-error-indicator) {
+g-cell.dependency-error-indicator, 
+g-ref.dependency-error-indicator {
     border-color: #ffdd57; /* Matches Bulma's warning color */
     background-color: #fffbeb;
 }
-:host(.cell-not-found-indicator) {
+g-cell.cell-not-found-indicator, 
+g-ref.cell-not-found-indicator {
     border-color: #ff3860;
     background-color: #fff5f7;
     font-style: italic;
@@ -46,7 +51,8 @@
     flex-wrap: wrap; /* Allow wrapping if content is too long */
 }
 
-:host([full-width-active]) .content-wrapper { /* Corrected selector */
+g-cell[full-width-active] .content-wrapper, 
+g-ref[full-width-active] .content-wrapper { /* Corrected selector */
     display: block; /* Full width content flows as block */
 }
 
@@ -83,7 +89,8 @@
     transition: opacity 0.15s ease-in-out, visibility 0s linear 0.15s; /* Smooth fade */
 }
 
-:host(:hover) .formula-display {
+g-cell:hover .formula-display, 
+g-ref:hover .formula-display { /* Changed selector */
     visibility: visible; /* Make it visible */
     opacity: 1;          /* Fully opaque */
     transition-delay: 0s; /* Apply immediately on hover */

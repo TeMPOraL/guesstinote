@@ -26,7 +26,8 @@
 }
 
 /* Styles for full-width histograms */
-:host([full-width-active]) .histogram-container { /* Changed selector to check for attribute presence */
+g-cell[full-width-active] .histogram-container, 
+g-ref[full-width-active] .histogram-container { /* Changed selector */
     height: 130px; /* Updated height for full-width */
     width: 100%;  /* Take full available width */
     margin-top: 5px; /* Add some space above when it's block display */
