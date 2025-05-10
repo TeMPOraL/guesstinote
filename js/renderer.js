@@ -190,26 +190,36 @@ const Renderer = {
             return container; 
         }
 
-        const validBins = histogramData.filter(bin => typeof bin.frequency === 'number');
-        if (validBins.length === 0) return container;
+        if (!histogramData || histogramData.length === 0) {
+            return container;
+        }
 
-        const maxCount = Math.max(...validBins.map(bin => bin.frequency), 0);
-        if (maxCount === 0) { 
-            for (let i = 0; i < Math.min(validBins.length, 10); i++) { 
+        // Filter out bins that might have undefined/NaN frequencies if any upstream logic error
+        const validBins = histogramData.filter(bin => typeof bin.frequency === 'number' && bin.frequency >= 0 && typeof bin.x0 === 'number' && typeof bin.x1 === 'number');
+        if (validBins.length === 0) {
+            // console.warn("Histogram: No valid bins to render.", histogramData);
+            return container;
+        }
+
+        const maxFrequency = Math.max(...validBins.map(bin => bin.frequency), 0);
+
+        if (maxFrequency === 0) {
+            // If all frequencies are 0, render some minimal bars to indicate presence of bins
+            validBins.forEach(() => {
                 const bar = document.createElement('div');
                 bar.classList.add('histogram-bar');
-                bar.style.height = '1%';
+                bar.style.height = '1%'; // Minimal height
                 container.appendChild(bar);
-            }
+            });
             return container;
         }
 
         validBins.forEach(bin => {
             const bar = document.createElement('div');
             bar.classList.add('histogram-bar');
-            const barHeight = (bin.frequency / maxCount) * 100;
-            bar.style.height = `${Math.max(1, barHeight)}%`; 
-            bar.title = `Range: ${typeof bin.x0 === 'number' ? bin.x0.toFixed(1) : 'N/A'} to ${typeof bin.x1 === 'number' ? bin.x1.toFixed(1) : 'N/A'}\nCount: ${bin.frequency}`;
+            const barHeight = (bin.frequency / maxFrequency) * 100;
+            bar.style.height = `${Math.max(1, barHeight)}%`; // Ensure at least 1% height for visibility
+            bar.title = `Range: ${bin.x0.toFixed(1)} to ${bin.x1.toFixed(1)}\nCount: ${bin.frequency}`;
             container.appendChild(bar);
         });
 

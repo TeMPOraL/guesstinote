@@ -102,23 +102,43 @@ const Calculator = {
             upper: samples[upperIndex]
         };
 
-        // Basic histogram data (e.g., 10 bins)
-        // This is a very simple histogram binning.
         const minVal = samples[0];
         const maxVal = samples[samples.length - 1];
-        const binSize = (maxVal - minVal) / 10 || 1; // Avoid division by zero if all values are same
-        const histogramData = Array(10).fill(0);
-        if (maxVal > minVal) { // only bin if there's a range
-            for (const val of samples) {
-                let binIndex = Math.floor((val - minVal) / binSize);
-                if (binIndex >= 10) binIndex = 9; // Clamp to last bin
-                if (binIndex < 0) binIndex = 0; // Should not happen if val >= minVal
-                histogramData[binIndex]++;
-            }
-        } else if (samples.length > 0) { // all values are the same
-            histogramData[0] = samples.length; // put all in the first bin
-        }
+        let histogramData = [];
 
+        if (samples.length > 0) {
+            if (minVal === maxVal) { // All samples are the same
+                histogramData = [{ x0: minVal, x1: maxVal, frequency: samples.length }];
+            } else {
+                // Use Sturges' formula for number of bins
+                const numBins = Math.max(1, Math.ceil(Math.log2(samples.length) + 1));
+                const binWidth = (maxVal - minVal) / numBins;
+
+                // Initialize bins
+                for (let i = 0; i < numBins; i++) {
+                    histogramData.push({
+                        x0: minVal + i * binWidth,
+                        x1: minVal + (i + 1) * binWidth,
+                        frequency: 0
+                    });
+                }
+
+                // Populate bins
+                for (const val of samples) {
+                    let binIndex = Math.floor((val - minVal) / binWidth);
+                    // Handle edge case where val === maxVal, should go into the last bin
+                    if (val === maxVal) {
+                        binIndex = numBins - 1;
+                    }
+                    // Clamp binIndex to be within [0, numBins - 1]
+                    binIndex = Math.max(0, Math.min(binIndex, numBins - 1));
+                    
+                    if (histogramData[binIndex]) { // Should always be true if logic is correct
+                        histogramData[binIndex].frequency++;
+                    }
+                }
+            }
+        }
 
         return { mean, ci, histogramData };
     },
