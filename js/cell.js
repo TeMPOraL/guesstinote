@@ -97,12 +97,13 @@ class Cell {
         dependentsToUpdate.forEach(dependentId => {
             const dependentCell = cellsCollection[dependentId];
             if (dependentCell) {
-                console.log(`Cell ${this.id} triggering update for dependent: ${dependentId}`);
-                dependentCell.processFormula(); // This will in turn call its own evaluator and trigger its dependents
+                // console.log(`Cell ${this.id} triggering update for dependent: ${dependentId}`);
+                // The dependentCell.processFormula() will handle its own DOM update
+                // and trigger its own dependents if its state changes.
+                dependentCell.processFormula();
             }
         });
     }
-
 
     processFormula() {
         const initialErrorState = this.errorState;
