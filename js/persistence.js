@@ -71,6 +71,7 @@ const Persistence = {
             // Or, give it a special non-persistent ID? For now, treat as unsaved.
             window.history.replaceState(null, null, '#'); // Clear hash for tutorial
             localStorage.removeItem(this.LAST_OPENED_KEY); // Don't make tutorial "last opened" by default
+            this.hasUnsavedChanges = false;
             
             if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                 window.Guesstinote.refreshEditor();
@@ -79,6 +80,7 @@ const Persistence = {
             console.warn("Tutorial content not available.");
             window.Guesstinote.setEditorContent("<h1>Welcome to Guesstinote!</h1><p>Edit this document or create a new one.</p><p>[MyExample](10 to 20)[units]</p>");
             window.Guesstinote.setDocName("Unsaved Document");
+            this.hasUnsavedChanges = false; // Also treat this as clean initially
             if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                 window.Guesstinote.refreshEditor();
             }
@@ -86,12 +88,14 @@ const Persistence = {
     },
 
     handleNewDocument: function() {
-        if (confirm("Create a new document? Any unsaved changes will be lost.")) {
-            Persistence.loadTutorialDocument(); // Or a blank template
-            // Clear currentDocId as it's a new, unsaved document
-            Persistence.currentDocId = null; 
-            window.history.replaceState(null, null, '#'); // Clear hash
+        if (this.hasUnsavedChanges && !confirm("You have unsaved changes. Create a new document anyway?")) {
+            return;
         }
+        // Proceed with creating a new document
+        Persistence.loadTutorialDocument(); // This will set hasUnsavedChanges to false
+        // Clear currentDocId as it's a new, unsaved document
+        Persistence.currentDocId = null; 
+        window.history.replaceState(null, null, '#'); // Clear hash
     },
 
     currentDocId: null, // Store the ID of the currently loaded/saved document
@@ -109,6 +113,7 @@ const Persistence = {
             localStorage.setItem(this.LAST_OPENED_KEY, this.currentDocId);
             this._updateDocList(this.currentDocId, docName);
             window.history.replaceState(null, null, '#' + this.currentDocId); // Update URL hash
+            this.hasUnsavedChanges = false;
             alert(`Document "${docName}" saved!`);
             console.log(`Document saved with ID: ${this.currentDocId}`);
         } catch (e) {
@@ -130,6 +135,7 @@ const Persistence = {
                 this.currentDocId = docId;
                 localStorage.setItem(this.LAST_OPENED_KEY, docId);
                 window.history.replaceState(null, null, '#' + docId);
+                this.hasUnsavedChanges = false;
                 console.log(`Document loaded with ID: ${docId}`);
                 if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                     window.Guesstinote.refreshEditor();
@@ -148,6 +154,15 @@ const Persistence = {
     promptLoadDocument: function() {
         // FR3.1.4: Allow users to load existing documents.
         // This could be a simple prompt for now, or a modal with a list.
+
+        hasUnsavedChanges: false,
+
+        markUnsavedChanges: function() {
+            this.hasUnsavedChanges = true;
+            // console.log("Persistence: Marked unsaved changes.");
+            // Future: Update UI to indicate unsaved changes (e.g., asterisk on doc name, enable save button)
+        },
+
         const docList = this._getDocList();
         if (docList.length === 0) {
             alert("No saved documents found.");
@@ -208,6 +223,7 @@ const Persistence = {
                 window.Guesstinote.setEditorContent(pastedContent);
                 window.Guesstinote.setDocName("Imported Document"); // Or try to parse a name
                 this.currentDocId = null; // Imported doc is unsaved initially
+                this.markUnsavedChanges(); // Imported content should be marked as unsaved
                 window.history.replaceState(null, null, '#'); // Clear hash
                 if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                     window.Guesstinote.refreshEditor();
