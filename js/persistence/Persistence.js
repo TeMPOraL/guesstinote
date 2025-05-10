@@ -94,7 +94,7 @@ const Persistence = {
         } else {
             console.warn("Tutorial content provider (Tutorial.getContent) not available."); // Updated log
             window.Guesstinote.setEditorContent("<h1>Error</h1><p>Tutorial module is not available.</p>"); // Updated fallback
-            window.Guesstinote.setDocName("Unsaved Document");
+            window.Guesstinote.setDocName("Error"); // Updated fallback
             this.hasUnsavedChanges = false; 
             if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                 window.Guesstinote.refreshEditor();
@@ -102,7 +102,7 @@ const Persistence = {
         }
     },
 
-    handleNewDocument: function() {
+    handleNewDocument: async function() { // Changed to async to allow awaiting loadTutorialDocument
         if (this.hasUnsavedChanges && !confirm("You have unsaved changes. Create a new document anyway?")) {
             return;
         }
