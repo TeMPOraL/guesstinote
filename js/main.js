@@ -68,13 +68,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const rawText = span.dataset.rawText;
             if (rawText) {
                 const def = Parser.parseSingleCellDefinition(rawText);
-                if (def) {
+                if (def) { // def now includes isFullWidth
                     const cell = _createOrUpdateCell(def.id, def.displayName, def.formula, def.rawText);
-                    const newDefSpan = Renderer.renderCell(cell); // Render as definition
+                    const renderOpts = { 
+                        isReference: false, 
+                        cellData: cell, 
+                        definitionRawText: def.rawText, 
+                        isFullWidth: def.isFullWidth 
+                    };
+                    const newDefSpan = Renderer.renderCell(renderOpts);
                     if (span.parentNode) {
                         span.parentNode.replaceChild(newDefSpan, span);
                     }
-                } 
+                }
                 // If it's not a definition (e.g., an old reference span), leave it. Phase B will handle it.
             }
         });
@@ -106,9 +112,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cellId = (idPart ? idPart.trim() : namePart.trim());
                 const displayName = namePart.trim();
                 const formula = formulaPart.trim();
-                const cell = _createOrUpdateCell(cellId, displayName, formula, rawDefText);
-                const newDefSpan = Renderer.renderCell(cell); // Render as definition
-                _replaceTextRangeWithNode(textNode, currentMatch.index, rawDefText.length, newDefSpan);
+
+                // Re-parse with parseSingleCellDefinition to get isFullWidth from rawDefText
+                const defDetails = Parser.parseSingleCellDefinition(rawDefText);
+                if (!defDetails) continue; // Should not happen if regex matched
+
+                const cell = _createOrUpdateCell(defDetails.id, defDetails.displayName, defDetails.formula, defDetails.rawText);
+                const renderOpts = {
+                    isReference: false,
+                    cellData: cell,
+                    definitionRawText: defDetails.rawText,
+                    isFullWidth: defDetails.isFullWidth
+                };
+                const newDefElement = Renderer.renderCell(renderOpts);
+                _replaceTextRangeWithNode(textNode, currentMatch.index, rawDefText.length, newDefElement);
             }
         }
 
@@ -121,20 +138,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 const refData = Parser.parseSingleCellReference(rawText);
                 if (refData) { // It is a reference
                     const targetCell = CellsCollection[refData.id];
-                    let renderOptions;
+                    let renderOpts;
                     if (targetCell) {
-                        renderOptions = { isReference: true, targetCell: targetCell, referenceRawText: refData.rawText, referenceDisplayName: refData.customDisplayName };
-                    } else { // Target cell for reference not found
-                        renderOptions = { 
+                        renderOpts = { 
                             isReference: true, 
-                            targetCell: { id: refData.id, displayName: refData.id, rawFormula: "", errorState: `Ref target ${refData.id} not found`, isDependencyError: true, mean: null, ci: {}, value: null, samples:[] },
+                            targetCell: targetCell, 
                             referenceRawText: refData.rawText, 
-                            referenceDisplayName: refData.customDisplayName 
+                            referenceDisplayName: refData.customDisplayName,
+                            isFullWidth: refData.isFullWidth // from parseSingleCellReference
+                        };
+                    } else { // Target cell for reference not found
+                        renderOpts = { 
+                            isReference: true, 
+                            targetCell: { id: refData.id, displayName: refData.customDisplayName || refData.id, rawFormula: "", errorState: `Ref target ${refData.id} not found`, isDependencyError: true, mean: null, ci: {}, value: null, samples:[] },
+                            referenceRawText: refData.rawText, 
+                            referenceDisplayName: refData.customDisplayName,
+                            isFullWidth: refData.isFullWidth
                         };
                     }
-                    const newRefSpan = Renderer.renderCell(renderOptions);
+                    const newRefElement = Renderer.renderCell(renderOpts);
                     if (span.parentNode) {
-                        span.parentNode.replaceChild(newRefSpan, span);
+                        span.parentNode.replaceChild(newRefElement, span);
                     }
                 }
             }
@@ -162,22 +186,29 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let j = referenceMatches.length - 1; j >= 0; j--) {
                 const currentMatch = referenceMatches[j];
                 const rawRefText = currentMatch[0];
-                const refData = Parser.parseSingleCellReference(rawRefText); // Should always succeed if regex matched
-                if (refData) {
+                const refData = Parser.parseSingleCellReference(rawRefText); 
+                if (refData) { // refData now includes isFullWidth
                     const targetCell = CellsCollection[refData.id];
-                    let renderOptions;
+                    let renderOpts;
                      if (targetCell) {
-                        renderOptions = { isReference: true, targetCell: targetCell, referenceRawText: refData.rawText, referenceDisplayName: refData.customDisplayName };
-                    } else { // Target cell for reference not found
-                        renderOptions = { 
+                        renderOpts = { 
                             isReference: true, 
-                            targetCell: { id: refData.id, displayName: refData.id, rawFormula: "", errorState: `Ref target ${refData.id} not found`, isDependencyError: true, mean: null, ci: {}, value: null, samples:[] },
+                            targetCell: targetCell, 
                             referenceRawText: refData.rawText, 
-                            referenceDisplayName: refData.customDisplayName 
+                            referenceDisplayName: refData.customDisplayName,
+                            isFullWidth: refData.isFullWidth
+                        };
+                    } else { // Target cell for reference not found
+                        renderOpts = { 
+                            isReference: true, 
+                            targetCell: { id: refData.id, displayName: refData.customDisplayName || refData.id, rawFormula: "", errorState: `Ref target ${refData.id} not found`, isDependencyError: true, mean: null, ci: {}, value: null, samples:[] },
+                            referenceRawText: refData.rawText, 
+                            referenceDisplayName: refData.customDisplayName,
+                            isFullWidth: refData.isFullWidth
                         };
                     }
-                    const newRefSpan = Renderer.renderCell(renderOptions);
-                    _replaceTextRangeWithNode(textNode, currentMatch.index, rawRefText.length, newRefSpan);
+                    const newRefElement = Renderer.renderCell(renderOpts);
+                    _replaceTextRangeWithNode(textNode, currentMatch.index, rawRefText.length, newRefElement);
                 }
             }
         }
@@ -366,33 +397,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = matches.length - 1; i >= 0; i--) {
             const currentMatch = matches[i];
-            const rawText = currentMatch[0];
-            const idPart = currentMatch[1]; // Optional ID before |
-            const namePart = currentMatch[2]; // Name, or ID if idPart is null
-            const formulaPart = currentMatch[3];
-            // const unitPart = currentMatch[4]; // Unit is removed
+            const rawDefText = currentMatch[0];
+            
+            // Parse the matched raw text to get all details including isFullWidth
+            const defDetails = Parser.parseSingleCellDefinition(rawDefText);
+            if (!defDetails) continue; // Should not happen if regex matched
 
-            const cellId = idPart ? idPart.trim() : namePart.trim();
-            const displayName = namePart.trim();
-            const formula = formulaPart.trim();
-
-            const cell = _createOrUpdateCell(cellId, displayName, formula, rawText);
-            const cellSpan = _replaceTextRangeWithNode(
+            const cell = _createOrUpdateCell(defDetails.id, defDetails.displayName, defDetails.formula, defDetails.rawText);
+            
+            const renderOpts = {
+                isReference: false,
+                cellData: cell,
+                definitionRawText: defDetails.rawText,
+                isFullWidth: defDetails.isFullWidth
+            };
+            const newCellElement = _replaceTextRangeWithNode(
                 currentNode, 
                 currentMatch.index, 
-                rawText.length, 
-                Renderer.renderCell(cell)
+                rawDefText.length, 
+                Renderer.renderCell(renderOpts)
             );
 
-            // Attempt to move the cursor after the inserted span
+            // Attempt to move the cursor after the inserted span/div
             // This is important for a smooth typing experience.
             const newRange = document.createRange();
-            newRange.setStartAfter(cellSpan);
+            newRange.setStartAfter(newCellElement); // newCellElement can be a span or a div wrapper
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
 
-            console.log(`Replaced raw cell text "${rawText}" with prettified cell.`);
+            console.log(`Replaced raw cell text "${rawDefText}" with prettified cell.`);
         }
         // Note: The initial rendering of cells on document load is not handled here yet.
         // This handleContentChange is focused on live typing.
@@ -442,24 +476,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (cellInstances.length === 0) return;
 
-        cellInstances.forEach(spanToUpdate => {
-            const refRawText = spanToUpdate.dataset.refRawText; // Check if it's a reference span
-            let renderOptions;
+        cellInstances.forEach(spanToUpdate => { // spanToUpdate is the inner .guesstimate-cell span
+            const rawText = spanToUpdate.dataset.rawText;
+            let renderOpts;
 
-            if (refRawText) { // It's a reference
-                renderOptions = {
+            // Re-parse rawText to determine if it's a definition or reference, and its isFullWidth status
+            const parsedRef = Parser.parseSingleCellReference(rawText);
+            if (parsedRef) { // It's a reference
+                renderOpts = {
                     isReference: true,
                     targetCell: targetCellData,
-                    referenceRawText: refRawText,
-                    referenceDisplayName: spanToUpdate.dataset.refDisplayName // May be undefined
+                    referenceRawText: parsedRef.rawText,
+                    referenceDisplayName: parsedRef.customDisplayName,
+                    isFullWidth: parsedRef.isFullWidth
                 };
-            } else { // It's a definition
-                renderOptions = targetCellData; // Pass the cell object directly
+            } else {
+                const parsedDef = Parser.parseSingleCellDefinition(rawText);
+                if (parsedDef) { // It's a definition
+                    renderOpts = {
+                        isReference: false,
+                        cellData: targetCellData, // targetCellData is the Cell object for cellId
+                        definitionRawText: parsedDef.rawText,
+                        isFullWidth: parsedDef.isFullWidth
+                    };
+                } else {
+                    // Fallback: Should not happen if rawText was valid to create the span initially
+                    console.warn(`_updateSpansForCell: Could not parse rawText "${rawText}" for cell ${cellId}. Rendering as simple definition.`);
+                    renderOpts = {
+                        isReference: false,
+                        cellData: targetCellData,
+                        definitionRawText: targetCellData.rawText, // Use cell's stored rawText
+                        isFullWidth: false
+                    };
+                }
             }
             
-            const newCellSpan = Renderer.renderCell(renderOptions);
-            if (spanToUpdate.parentNode) {
-                spanToUpdate.parentNode.replaceChild(newCellSpan, spanToUpdate);
+            const newCellElement = Renderer.renderCell(renderOpts); // Returns span or div wrapper
+            
+            // If the original span was inside a full-width wrapper, we need to replace the wrapper.
+            // Otherwise, just replace the span.
+            const parent = spanToUpdate.parentNode;
+            if (parent) {
+                if (parent.classList.contains('guesstimate-cell-full-width-wrapper')) {
+                    parent.parentNode.replaceChild(newCellElement, parent);
+                } else {
+                    parent.replaceChild(newCellElement, spanToUpdate);
+                }
             }
         });
     }

@@ -25,17 +25,17 @@ const Parser = {
     // \[([^\]]*)\]                    -> Captures Formula part: [Formula]
     //                                     Group 3: Formula (any char except ']')
     // Unit part is now removed.
-    cellDefinitionRegex: /\[(?:([^\]|]+)\|)?([^\]]+)\]\[([^\]]*)\]/g,
+    // New Group 1: Optional "FW|" for full-width
+    // Old Group 1 (optional ID) becomes Group 2
+    // Old Group 2 (Name) becomes Group 3
+    // Old Group 3 (Formula) becomes Group 4
+    cellDefinitionRegex: /\[(FW\|)?(?:([^\]|]+)\|)?([^\]]+)\]\[([^\]]*)\]/g,
 
     // Regex for `[#ID|DisplayName]` or `[#ID]`
-    // \[\#(?:([^\]|]+)\|)?([^\]]+)\]      -> Captures reference: [#ID|Name] or [#ID]
-    //                                     Group 5: Referenced ID (if display name is custom)
-    //                                     Group 6: ID (if no custom display name) or Custom Display Name
-    // This needs to be smarter. Let's try:
-    // \[\#([^\]|]+)(?:\|([^\]]+))?\]
-    // Group 1: ID
-    // Group 2: Optional Custom Display Name
-    cellReferenceRegex: /\[\#([^\]|]+)(?:\|([^\]]+))?\]/g,
+    // New Group 1: Optional "FW|" for full-width
+    // Old Group 1 (ID) becomes Group 2
+    // Old Group 2 (Optional Custom Display Name) becomes Group 3
+    cellReferenceRegex: /\[(FW\|)?\#([^\]|]+)(?:\|([^\]]+))?\]/g,
 
 
     parse: function(rawContent) {
@@ -83,9 +83,10 @@ const Parser = {
         const match = this.cellDefinitionRegex.exec(rawText.trim());
 
         if (match && match[0].length === rawText.trim().length) { // Ensure the regex consumes the whole string
-            const idPart = match[1]; 
-            const namePart = match[2];
-            const formulaPart = match[3];
+            const isFullWidth = !!match[1]; // True if "FW|" is present
+            const idPart = match[2]; 
+            const namePart = match[3];
+            const formulaPart = match[4];
 
             const cellId = idPart ? idPart.trim() : namePart.trim();
             const displayName = namePart.trim();
@@ -95,7 +96,8 @@ const Parser = {
                 id: cellId,
                 displayName: displayName,
                 formula: formula,
-                rawText: rawText // Original rawText
+                rawText: rawText.trim(), // Original rawText
+                isFullWidth: isFullWidth
             };
         }
         console.warn("Could not parse single cell definition from rawText:", rawText);
@@ -109,13 +111,15 @@ const Parser = {
         const match = this.cellReferenceRegex.exec(rawText.trim());
 
         if (match && match[0].length === rawText.trim().length) { // Ensure the regex consumes the whole string
-            const id = match[1].trim();
-            const customDisplayName = match[2] ? match[2].trim() : undefined;
+            const isFullWidth = !!match[1]; // True if "FW|" is present
+            const id = match[2].trim();
+            const customDisplayName = match[3] ? match[3].trim() : undefined;
 
             return {
                 id: id,
                 customDisplayName: customDisplayName,
-                rawText: rawText.trim() // Original rawText
+                rawText: rawText.trim(), // Original rawText
+                isFullWidth: isFullWidth
             };
         }
         return null; // Not a valid reference string

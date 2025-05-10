@@ -1,34 +1,36 @@
 // Responsible for displaying Cells in the editor.
 
 const Renderer = {
-    renderCell: function(options) {
-        // options can be:
-        // 1. A Cell object (for rendering a definition)
-        // 2. An object { isReference: true, targetCell, referenceRawText, referenceDisplayName? }
+    renderCell: function(renderInput) {
+        // renderInput contains:
+        // - isReference (boolean)
+        // - isFullWidth (boolean)
+        // - If isReference: targetCell, referenceRawText, referenceDisplayName?
+        // - Else (definition): cellData (Cell object), definitionRawText
 
         const cellSpan = document.createElement('span');
         cellSpan.classList.add('guesstimate-cell');
         cellSpan.setAttribute('contenteditable', 'false');
 
-        let cellToRenderData; // Data of the cell whose values (mean, CI, etc.) are shown
+        let cellToRenderData; 
         let displayName;
-        let rawTextForAttribute; // For data-raw-text, used by unprettify
-        let formulaForDisplay;   // Formula string to show in the UI
+        let rawTextForAttribute; 
+        let formulaForDisplay;   
 
-        if (options.isReference) {
-            cellToRenderData = options.targetCell;
-            rawTextForAttribute = options.referenceRawText;
-            displayName = options.referenceDisplayName || cellToRenderData.displayName;
-            formulaForDisplay = cellToRenderData.rawFormula; // Show the original cell's formula
+        if (renderInput.isReference) {
+            cellToRenderData = renderInput.targetCell;
+            rawTextForAttribute = renderInput.referenceRawText;
+            displayName = renderInput.referenceDisplayName || cellToRenderData.displayName;
+            formulaForDisplay = cellToRenderData.rawFormula; 
 
             cellSpan.setAttribute('data-cell-id', cellToRenderData.id);
             cellSpan.setAttribute('data-raw-text', rawTextForAttribute);
-            if (options.referenceDisplayName) {
-                cellSpan.setAttribute('data-ref-display-name', options.referenceDisplayName);
+            if (renderInput.referenceDisplayName) {
+                cellSpan.setAttribute('data-ref-display-name', renderInput.referenceDisplayName);
             }
-        } else { // It's a definition, options is the Cell object itself
-            cellToRenderData = options;
-            rawTextForAttribute = cellToRenderData.rawText; // The definition string
+        } else { // It's a definition
+            cellToRenderData = renderInput.cellData;
+            rawTextForAttribute = renderInput.definitionRawText; 
             displayName = cellToRenderData.displayName;
             formulaForDisplay = cellToRenderData.rawFormula;
 
@@ -88,7 +90,19 @@ const Renderer = {
                 cellSpan.appendChild(statusSpan);
             }
         }
-        return cellSpan;
+
+        if (renderInput.isFullWidth) {
+            const wrapperDiv = document.createElement('div');
+            wrapperDiv.classList.add('guesstimate-cell-full-width-wrapper');
+            // data-is-full-width might be useful for _updateSpansForCell if we didn't re-parse rawText
+            // but since we re-parse rawText there, it's not strictly needed on the DOM element itself.
+            // However, it can be useful for CSS or direct DOM debugging/selection.
+            wrapperDiv.setAttribute('data-is-full-width', 'true'); 
+            wrapperDiv.appendChild(cellSpan);
+            return wrapperDiv;
+        } else {
+            return cellSpan;
+        }
     },
 
     _appendFormulaDisplay: function(parentSpan, rawFormula) {

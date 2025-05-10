@@ -115,3 +115,27 @@ footer {
     background-color: #fff0dd !important;
     border-color: #ffccaa !important;
 }
+
+/* Styles for Full-Width Cells */
+.guesstimate-cell-full-width-wrapper {
+    display: block; /* Makes it take full width */
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    padding: 8px; 
+    background-color: #f9f9f9; 
+    border: 1px solid #eee; 
+    border-radius: 4px;
+}
+
+/* The actual cell span inside the wrapper remains inline-block by default */
+/* .guesstimate-cell-full-width-wrapper .guesstimate-cell { */
+    /* No specific changes needed unless we want to force its width too */
+/* } */
+
+/* Example for a larger histogram in full-width cells (FR3.2.5 - future detail) */
+/*
+.guesstimate-cell-full-width-wrapper .guesstimate-cell .histogram {
+    width: 200px; 
+    height: 20px;
+}
+*/
