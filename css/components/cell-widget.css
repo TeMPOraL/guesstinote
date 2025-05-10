@@ -99,12 +99,9 @@ g-cell[full-width-active] .cell-viz-area {
     align-items: flex-start; /* Align children to the start of the cross-axis */
 }
 
-/* For inline scalars, the prominent value is a direct child of cell-info-area,
-   so ensure it aligns correctly with the info-main-line that follows. */
-g-cell:not([full-width-active]) .cell-info-area > .scalar-value-prominent,
-g-ref:not([full-width-active]) .cell-info-area > .scalar-value-prominent {
-    line-height: 1.2; /* Adjust if baseline alignment with subsequent name is off */
-}
+/* The .scalar-value-prominent is now inside .info-main-line for inline scalars,
+   so the direct child selector rule above is no longer needed.
+   Baseline alignment within .info-main-line should handle it. */
 
 
 .info-main-line {

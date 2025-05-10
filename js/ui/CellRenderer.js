@@ -64,23 +64,26 @@ const CellRenderer = {
         this._createAndAppendSpan(infoArea, 'cell-id-display', effectiveCell.id ? `[${effectiveCell.id}]` : '');
 
         if (!isFullWidth && (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant')) { // Inline Scalar
-            // Append Scalar Value (large) directly to infoArea, after ID
-            if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
-                if (typeof effectiveCell.value === 'number') {
-                    this._createAndAppendSpan(infoArea, 'value scalar-value-prominent', `${parseFloat(effectiveCell.value.toFixed(2))}`);
-                } else if (!effectiveCell.errorState) { // Constant, but value not ready
-                    this._createAndAppendSpan(infoArea, 'value', ' (Processing...)', { fontStyle: 'italic' });
-                }
-                // If direct error, no value span here. Error shows in infoMainLine.
-            }
-
+            // ID is appended directly to infoArea (done by the caller of this specific block or handled by CSS column flex)
+            // For inline scalars, value comes first in the infoMainLine, then name.
             const infoMainLine = document.createElement('div');
             infoMainLine.className = 'info-main-line scalar-info-main-line';
+
+            // Append Scalar Value (large) to infoMainLine
+            if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
+                if (typeof effectiveCell.value === 'number') {
+                    this._createAndAppendSpan(infoMainLine, 'value scalar-value-prominent', `${parseFloat(effectiveCell.value.toFixed(2))}`);
+                } else if (!effectiveCell.errorState) { // Constant, but value not ready
+                    this._createAndAppendSpan(infoMainLine, 'value', ' (Processing...)', { fontStyle: 'italic' });
+                }
+                // If direct error, no value span here. Error shows later in infoMainLine.
+            }
+            
             // Cell Name
             this._createAndAppendSpan(infoMainLine, 'name', displayName);
             // Error Message (if any)
             this._appendErrorDisplay(infoMainLine, effectiveCell);
-            // No Value or CI here for inline scalars, value handled above.
+            // No CI here for inline scalars.
             infoArea.appendChild(infoMainLine);
 
         } else { // Non-scalar OR Full-width scalar
