@@ -2,7 +2,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Guesstinote DOMContentLoaded (Two-Pane Editor)');
 
-    const htmlEditor = document.getElementById('htmlEditor'); // Changed from 'editor'
+    const htmlEditorTextArea = document.getElementById('htmlEditor'); // Changed from 'editor'
+    let cmEditor; // To store the CodeMirror instance
+
     const previewPane = document.getElementById('previewPane'); // New element
     const docNameInput = document.getElementById('docName');
     const newDocBtn = document.getElementById('newDocBtn');
@@ -18,13 +20,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initializeApp() {
         console.log('Initializing Guesstinote with two-pane editor...');
+
+        // Initialize CodeMirror
+        cmEditor = CodeMirror.fromTextArea(htmlEditorTextArea, {
+            mode: "htmlmixed",
+            lineNumbers: true,
+            theme: "default" // Optional: you can add themes by including their CSS
+        });
+
         Persistence.loadInitialDocument(); // This will call Guesstinote.setEditorContent
         setupEventListeners();
         // Initial processing is triggered by setEditorContent -> updatePreviewAndProcessAll
     }
     
     function updatePreviewAndProcessAll() {
-        const htmlContent = htmlEditor.value;
+        const htmlContent = cmEditor.getValue();
         previewPane.innerHTML = htmlContent; 
 
         // Short delay to allow custom elements to connect and run their connectedCallbacks
@@ -41,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // processCellCalculations function has been moved to CalculationManager.js
 
     function setupEventListeners() {
-        htmlEditor.addEventListener('input', () => {
+        cmEditor.on('change', () => {
             clearTimeout(processingTimeout);
             processingTimeout = setTimeout(updatePreviewAndProcessAll, PROCESSING_DELAY);
             Persistence.markUnsavedChanges(); // Mark changes on input
@@ -82,10 +92,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.Guesstinote = {
-        getEditorContent: () => htmlEditor.value,
+        getEditorContent: () => cmEditor.getValue(),
         setEditorContent: (html) => {
-            htmlEditor.value = html;
-            updatePreviewAndProcessAll(); // Update preview and trigger all processing
+            cmEditor.setValue(html);
+            // CodeMirror's setValue might trigger its own 'change' event.
+            // If it does, the updatePreviewAndProcessAll might run twice.
+            // The existing timeout mechanism should handle this gracefully.
+            // Explicitly calling it ensures preview updates if setValue doesn't trigger 'change'
+            // or if the event is somehow suppressed.
+            updatePreviewAndProcessAll(); 
         },
         getDocName: () => docNameInput.value,
         setDocName: (name) => { docNameInput.value = name; },
