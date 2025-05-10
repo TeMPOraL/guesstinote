@@ -105,88 +105,87 @@ class Cell {
 
 
     processFormula() {
+        const initialErrorState = this.errorState;
+        const initialMean = this.mean;
+        const initialValue = this.value; // For constants
+
+        // Reset fields that will be recalculated or determined by formula processing
         this.errorState = null;
-        // this.ast = null; // AST is parsed below
-        this.type = null; 
+        this.ast = null;
+        this.type = null;
         this.parameters = {};
         this.value = null;
         this.samples = [];
         this.mean = null;
         this.ci = { lower: null, upper: null };
         this.histogramData = [];
-        // Dependencies are calculated below
+        // Dependencies are managed by _updateDependencyLinks called below
 
         const formula = this.rawFormula.trim();
 
         if (formula === '') {
             this.errorState = "Formula cannot be empty.";
-            console.warn(`Cell ${this.id}: ${this.errorState}`);
-            return;
+            // console.warn(`Cell ${this.id}: ${this.errorState}`); // Error state will be handled below
+        } else {
+            try {
+                this.ast = FormulaParser.parse(formula);
+                // console.log(`Cell ${this.id} parsed. AST:`, JSON.parse(JSON.stringify(this.ast)));
+
+                const newDependencies = this._extractDependencies(this.ast);
+                this._updateDependencyLinks(newDependencies, window.Guesstinote.getCellsCollection());
+
+                const evaluationResult = Evaluator.evaluate(this.ast, window.Guesstinote.getCellsCollection());
+
+                if (typeof evaluationResult === 'number') {
+                    this.type = 'constant';
+                    this.value = evaluationResult;
+                    this.samples = [evaluationResult]; // Represent scalar as a single sample for consistency
+                } else if (Array.isArray(evaluationResult)) {
+                    this.type = 'distribution'; // Covers PERT, Normal, Array, and formula results
+                    this.value = null;
+                    this.samples = evaluationResult;
+                } else {
+                    throw new Error("Evaluator returned an unexpected result type.");
+                }
+
+                if (this.samples.length > 0) {
+                    const stats = Calculator.calculateStats(this.samples);
+                    this.mean = stats.mean;
+                    this.ci = stats.ci;
+                    this.histogramData = stats.histogramData;
+                } else { // Handles empty samples (e.g., from array() or error during eval)
+                    this.mean = null;
+                    this.ci = { lower: null, upper: null };
+                    this.histogramData = [];
+                }
+            } catch (e) {
+                this.errorState = e.message;
+                // Clear potentially partially computed data
+                this.value = null; this.samples = []; this.mean = null;
+                this.ci = { lower: null, upper: null }; this.histogramData = [];
+                console.error(`Cell ${this.id} Error during formula processing:`, e.message, e.stack);
+            }
         }
 
-        try {
-            this.ast = FormulaParser.parse(formula);
-            console.log(`Cell ${this.id} parsed. AST:`, JSON.parse(JSON.stringify(this.ast))); // Deep copy for logging
-
-            // Update dependencies based on the new AST
-            const newDependencies = this._extractDependencies(this.ast);
-            this._updateDependencyLinks(newDependencies, window.Guesstinote.getCellsCollection());
-
-            // At this point, we have an AST.
-            // The direct calculation logic (for constants, PERT, array, X to Y)
-            // will be handled by an AST evaluator in a subsequent step.
-            // For now, we won't populate mean, ci, samples, etc., directly from here.
-            // The cell will display "Calculating..." or its formula based on renderer logic
-            // until the evaluator is built and integrated.
-
-            // The new Evaluator will handle interpretation of the AST.
-            // It needs access to the global CellsCollection for resolving CellIdentifiers.
-            // This is a simplification; ideally, CellsCollection is passed more explicitly.
-            const evaluationResult = Evaluator.evaluate(this.ast, window.Guesstinote.getCellsCollection());
-
-            if (typeof evaluationResult === 'number') {
-                this.type = 'constant'; // Result of evaluation is a scalar
-                this.value = evaluationResult;
-                this.samples = [evaluationResult]; // Represent as a single sample
-            } else if (Array.isArray(evaluationResult)) {
-                this.type = 'distribution'; // Result of evaluation is an array of samples
-                this.value = null; // Not a single scalar value
-                this.samples = evaluationResult;
-            } else {
-                // Should not happen if evaluator is correct
-                throw new Error("Evaluator returned an unexpected result type.");
+        let stateChanged = false;
+        if (this.errorState !== initialErrorState) {
+            stateChanged = true;
+        } else if (this.errorState === null) { // No error, check value
+            if (this.type === 'constant') { // This type is set during current processing
+                if (this.value !== initialValue) stateChanged = true;
+            } else { // Distribution or other non-constant, non-error types
+                if (this.mean !== initialMean) stateChanged = true;
+                // More robust check for sample changes could be added if mean isn't sufficient
             }
+        }
 
-            // Calculate stats based on samples
-            if (this.samples.length > 0) {
-                const stats = Calculator.calculateStats(this.samples);
-                this.mean = stats.mean;
-                this.ci = stats.ci;
-                this.histogramData = stats.histogramData;
-            } else { // Handle empty samples case (e.g. from empty array())
-                this.mean = null;
-                this.ci = { lower: null, upper: null };
-                this.histogramData = [];
-            }
-            
-            // TODO: Determine cell type ('pert', 'normal', 'dataArray', 'formula') more specifically
-            // based on the AST root or evaluation path if needed for rendering or other logic.
-            // For now, 'constant' or 'distribution' based on result type is a start.
-            
-            // After successful evaluation, trigger updates for dependent cells
-            // This should only happen if the value or error state actually changed,
-            // but for simplicity now, we trigger if no error.
-            // A more refined check would compare old vs new values/samples.
+        if (stateChanged) {
+            // console.log(`Cell ${this.id} state changed. Updating DOM and triggering dependents.`);
+            window.Guesstinote.updateCellDOM(this.id);
             this._triggerDependentsUpdate(window.Guesstinote.getCellsCollection());
-
-
-        } catch (e) {
-            this.errorState = e.message; // Capture errors from parser or evaluator
-            console.error(`Cell ${this.id} Error during formula processing:`, e.message, e.stack);
-            // If this cell errors out, its dependents might also need to be marked
-            // (e.g. 'dependent-error'). For now, they will try to evaluate and likely
-            // get an error when trying to access this cell's value.
+            return true; // Indicate that the cell's state changed
         }
+        return false; // Indicate no change
     }
 }
 

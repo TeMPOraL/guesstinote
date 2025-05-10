@@ -122,18 +122,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let changedInIteration = false;
             for (const cellId in CellsCollection) {
                 const cell = CellsCollection[cellId];
-                const oldError = cell.errorState;
-                // Storing a checksum/hash of samples would be better than stringifying for change detection
-                const oldValueSignature = cell.mean + (cell.value || '') + (cell.samples ? cell.samples.length : ''); 
-
-                cell.processFormula(); // Re-process (evaluates and triggers dependents)
-
-                const newValueSignature = cell.mean + (cell.value || '') + (cell.samples ? cell.samples.length : '');
-                if (cell.errorState !== oldError || newValueSignature !== oldValueSignature) {
+                // cell.processFormula() now returns true if the cell's state changed,
+                // and handles its own DOM update and triggers dependents.
+                if (cell.processFormula()) {
                     changedInIteration = true;
                 }
             }
-            if (!changedInIteration && i > 0) { // Ensure at least one full pass after initial
+            if (!changedInIteration && i > 0) { // Ensure at least one full pass after initial, then check for convergence
                 console.log(`Recalculation converged after ${i + 1} iterations.`);
                 break;
             }
@@ -386,7 +381,34 @@ document.addEventListener('DOMContentLoaded', () => {
         getGlobalSamples: () => parseInt(globalSamplesInput.value, 10) || 5000,
         // refreshEditor will now process the whole document
         refreshEditor: processFullDocument,
-        getCellsCollection: () => CellsCollection // Expose CellsCollection for Evaluator via Cell
+        getCellsCollection: () => CellsCollection, // Expose CellsCollection for Evaluator via Cell
+        updateCellDOM: (cellId) => { // New function to update a specific cell's DOM
+            const cell = CellsCollection[cellId];
+            if (!cell) {
+                console.warn(`updateCellDOM: Cell ${cellId} not found in CellsCollection.`);
+                return;
+            }
+
+            const editorNode = document.getElementById('editor');
+            if (!editorNode) return;
+
+            const cellInstances = editorNode.querySelectorAll(`.guesstimate-cell[data-cell-id="${cellId}"]`);
+
+            if (cellInstances.length === 0) {
+                // This can occur if a cell is part of a formula but not directly rendered,
+                // or if its definition was just typed and initial render is in progress.
+                // console.log(`updateCellDOM: No DOM instances found for cell ${cellId}.`);
+                return;
+            }
+
+            // console.log(`updateCellDOM: Updating ${cellInstances.length} DOM instance(s) for cell ${cellId}`);
+            cellInstances.forEach(cellSpan => {
+                const newCellSpan = Renderer.renderCell(cell); // cell object has all data
+                if (cellSpan.parentNode) {
+                    cellSpan.parentNode.replaceChild(newCellSpan, cellSpan);
+                }
+            });
+        }
     };
 
     init();
