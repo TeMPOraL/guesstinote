@@ -155,14 +155,6 @@ const Persistence = {
         // FR3.1.4: Allow users to load existing documents.
         // This could be a simple prompt for now, or a modal with a list.
 
-        hasUnsavedChanges: false,
-
-        markUnsavedChanges: function() {
-            this.hasUnsavedChanges = true;
-            // console.log("Persistence: Marked unsaved changes.");
-            // Future: Update UI to indicate unsaved changes (e.g., asterisk on doc name, enable save button)
-        },
-
         const docList = this._getDocList();
         if (docList.length === 0) {
             alert("No saved documents found.");
