@@ -83,17 +83,23 @@ g-cell[full-width-active] .cell-viz-area {
     line-height: 1; /* Ensure it centers well */
 }
 
-.cell-info-area { /* Replaces .cell-top-row */
+.cell-info-area { 
+    display: flex;
+    flex-direction: column; /* Stack ID and info-main-line vertically for inline cells */
+    align-items: flex-start; /* Align children to the start of the cross-axis */
+}
+
+.info-main-line {
     display: flex;
     align-items: baseline;
-    flex-wrap: nowrap; 
-    /* width: 100%; Removed, let it size by content in row layout */
-    /* In column layout (full-width), parent .content-wrapper align-items:stretch handles width */
+    flex-wrap: nowrap;
 }
 
 g-cell[full-width-active] .cell-info-area {
-    width: 100%; /* Ensure it takes full width before histogram in column layout */
-    order: -1; /* Display info area before viz area in full-width mode */
+    flex-direction: row; /* Explicitly set to row for full-width, overriding the base */
+    align-items: baseline; /* Maintain baseline alignment for full-width */
+    width: 100%; 
+    order: -1; 
 }
 
 
@@ -104,7 +110,7 @@ g-cell[full-width-active] .cell-info-area {
     font-size: 0.8em;
     color: #777;
     font-style: italic;
-    margin-right: 0.5em;
+    margin-bottom: 0.2em; /* Space below the ID when it's above the name */
     white-space: nowrap;
 }
 

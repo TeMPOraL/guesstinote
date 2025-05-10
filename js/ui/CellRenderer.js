@@ -61,14 +61,20 @@ const CellRenderer = {
     },
 
     _appendInfoAreaElements: function(infoArea, effectiveCell, displayName) {
-        // Cell ID (hidden by default, shown on hover via CSS)
+        // Cell ID (hidden by default, shown on hover via CSS) - will be stacked above info-main-line by CSS
         this._createAndAppendSpan(infoArea, 'cell-id-display', effectiveCell.id ? `[${effectiveCell.id}]` : '');
+
+        const infoMainLine = document.createElement('div');
+        infoMainLine.className = 'info-main-line';
+
         // Cell Name
-        this._createAndAppendSpan(infoArea, 'name', displayName);
+        this._createAndAppendSpan(infoMainLine, 'name', displayName);
         // Error Message (if any) - Appears inline with other info
-        this._appendErrorDisplay(infoArea, effectiveCell);
+        this._appendErrorDisplay(infoMainLine, effectiveCell);
         // Value and CI
-        this._appendValueAndCIDisplay(infoArea, effectiveCell);
+        this._appendValueAndCIDisplay(infoMainLine, effectiveCell);
+        
+        infoArea.appendChild(infoMainLine);
     },
 
     _appendVisualizationArea: function(vizArea, effectiveCell, isFullWidth) {
