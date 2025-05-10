@@ -78,8 +78,8 @@ class GRefElement extends HTMLElement {
         const isFullWidth = this.hasAttribute('full-width') && this.getAttribute('full-width') !== 'false';
         this.toggleAttribute('full-width-active', isFullWidth); 
         
-        if (typeof Renderer !== 'undefined' && Renderer) {
-            Renderer.renderCell({
+        if (typeof window.CellRenderer !== 'undefined' && window.CellRenderer) {
+            window.CellRenderer.renderCell({
                 hostElement: this,
                 isReference: true,
                 targetCell: this._targetCellInstance, 
