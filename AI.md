@@ -11,6 +11,34 @@ please add it to this file (or modify existing guideline). The format of the gui
 them by categories; otherwise, whatever works best for you is best. You may store information about the project you want to retain long-term,
 as well as any instructions for yourself to make your work more efficient and correct.
 
+## Self-Correction Guidelines for Coding Practices
+
+Based on session feedback, I will strive to adhere to the following guidelines to improve code quality and reduce the need for repeated corrections:
+
+1.  **Prefer Proper Parsing over Complex Regex:**
+    *   For syntax involving nesting, defined grammar, or operator precedence (e.g., mathematical formulas, structured data), prioritize implementing a tokenizer and a dedicated parser (e.g., recursive descent for AST generation) over attempting to use or patch complex regular expressions.
+    *   Use regex primarily for simple pattern matching or initial tokenization steps.
+
+2.  **Proactively Apply DRY and Abstraction:**
+    *   Actively identify and refactor repetitive code blocks into helper functions or methods.
+    *   For dispatching logic based on type or name (e.g., handling different AST node types, function calls), prefer using dispatch tables (maps/objects) over extended `if/else if` or `switch` statements, especially if the number of cases is likely to grow.
+
+3.  **Favor Fundamental Design Changes Over Incremental Patches for Flawed Approaches:**
+    *   If an existing approach requires multiple, increasingly complex fixes to address bugs or new requirements, pause and critically evaluate if the underlying design is sound.
+    *   Be ready to propose and implement more fundamental refactoring or a design change if it leads to a more robust, maintainable, and extensible solution, rather than continuing with a series of local patches.
+
+4.  **Design for Foreseeable Complexity (Within Scope):**
+    *   While adhering to the immediate task's scope ("do what they ask, but no more"), consider the overall project requirements when designing initial solutions.
+    *   If a core feature implies future complexity (e.g., formula evaluation, reactivity), the initial structures should be reasonably accommodating of this, even if the first implementation is a simplified version. This might involve placeholder modules or slightly more robust data structures from the outset.
+
+5.  **Meticulous Code Generation and Diff Accuracy:**
+    *   Thoroughly review generated code for syntax errors, logical consistency, and adherence to existing conventions before presenting it.
+    *   Ensure `SEARCH/REPLACE` blocks are precise and accurately reflect the changes against the current, exact state of the provided files. Double-check line endings, whitespace, and surrounding context.
+
+6.  **Clear Separation of Concerns:**
+    *   Continue to adhere to the project convention of separating concerns into different JavaScript files.
+    *   When introducing new, distinct functionalities (like an AST evaluator), propose creating new files for them to maintain modularity.
+
 ## Project Files and Structure
 This section outlines the core files of the Guesstinote project.
 
