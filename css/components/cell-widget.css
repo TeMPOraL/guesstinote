@@ -74,10 +74,15 @@
 }
 
 .formula-display {
+    display: none; /* Hidden by default */
     font-size: 0.8em;
     color: #7a7a7a;
     margin-left: 5px;
     font-style: italic;
+}
+
+:host(:hover) .formula-display {
+    display: inline; /* Show on hover */
 }
 
 .error-message {

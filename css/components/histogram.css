@@ -4,7 +4,7 @@
 .histogram-container {
     display: inline-flex;
     align-items: flex-end;
-    height: 20px;  /* Default height */
+    height: 40px;  /* Default height - Doubled */
     min-width: 30px; /* Minimum width to be somewhat visible */
     margin-left: 5px;
     border-left: 1px solid #ccc;
@@ -27,7 +27,7 @@
 
 /* Styles for full-width histograms */
 :host([full-width-active="true"]) .histogram-container {
-    height: 50px; /* 2.5x the default height (20px * 2.5 = 50px) */
+    height: 130px; /* Updated height for full-width */
     width: 100%;  /* Take full available width */
     margin-top: 5px; /* Add some space above when it's block display */
 }
