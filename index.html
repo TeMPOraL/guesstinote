@@ -23,14 +23,17 @@
     </header>
 
     <main>
-        <div id="editor" contenteditable="true" spellcheck="false">
+        <textarea id="htmlEditor" spellcheck="false">
             <!-- Initial content, perhaps from tutorial.js, will be loaded here -->
+        </textarea>
+        <div id="previewPane">
+            <!-- Live preview will be rendered here -->
         </div>
     </main>
 
     <footer>
         <p>Guesstinote - Client-Side Probabilistic Notepad</p>
-        <p>Global Samples: <input type="number" id="globalSamples" value="5000" min="100" step="100"></p>
+        <p>Global Samples: <input type="number" id="globalSamplesInput" value="5000" min="100" step="100"></p>
     </footer>
 
     <script src="js/tutorial.js"></script>
