@@ -127,6 +127,10 @@ class Cell {
             this.ast = FormulaParser.parse(formula);
             console.log(`Cell ${this.id} parsed. AST:`, JSON.parse(JSON.stringify(this.ast))); // Deep copy for logging
 
+            // Update dependencies based on the new AST
+            const newDependencies = this._extractDependencies(this.ast);
+            this._updateDependencyLinks(newDependencies, window.Guesstinote.getCellsCollection());
+
             // At this point, we have an AST.
             // The direct calculation logic (for constants, PERT, array, X to Y)
             // will be handled by an AST evaluator in a subsequent step.

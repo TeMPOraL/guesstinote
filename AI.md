@@ -39,6 +39,33 @@ Based on session feedback, I will strive to adhere to the following guidelines t
     *   Continue to adhere to the project convention of separating concerns into different JavaScript files.
     *   When introducing new, distinct functionalities (like an AST evaluator), propose creating new files for them to maintain modularity.
 
+## Reactivity Implementation Plan (2025-05-10)
+
+To enable robust cell referencing and reactivity, the following aspects need to be ensured:
+
+1.  **Solidify Cell Recognition and Access:**
+    *   Ensure all cell definitions are correctly parsed from the document.
+    *   Cell IDs must be accurately determined.
+    *   Cells must be reliably stored in and retrievable from the global `CellsCollection` using their exact IDs.
+
+2.  **Robust Initial Calculation and Error Recovery:**
+    *   The iterative recalculation loop in `processFullDocument` is crucial. It allows cells to calculate successfully even if their dependencies appear later in the document.
+    *   Ensure that errors (like "Unknown cell identifier") occurring during an early evaluation attempt (before all dependencies are in `CellsCollection`) are cleared when the cell is reprocessed in a subsequent iteration where dependencies are available.
+
+3.  **Build and Maintain the Dynamic Dependency Map:**
+    *   When a cell's formula is processed (`Cell.prototype.processFormula`):
+        *   After parsing the formula into an AST, extract all cell IDs it directly depends on (its `dependencies`).
+        *   Update the cell's internal list of dependencies.
+        *   For each dependency cell, add the current cell's ID to the dependency's list of `dependents`.
+    *   This two-way mapping (`dependencies` and `dependents` sets on each cell) must be accurately maintained. The functions `_extractDependencies` and `_updateDependencyLinks` in `js/cell.js` are key here and must be called within `processFormula`.
+
+4.  **Propagate Changes Through the Dependency Map:**
+    *   When a cell's value or error state changes:
+        *   It consults its list of `dependents`.
+        *   It triggers each dependent cell to re-evaluate its own formula.
+        *   This re-evaluation will fetch the new value/state of the changed cell, and the process continues down the dependency chain.
+    *   The `_triggerDependentsUpdate` function in `js/cell.js` handles this propagation and should be called after a cell successfully recomputes.
+
 ## Project Files and Structure
 This section outlines the core files of the Guesstinote project.
 
