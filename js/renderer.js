@@ -76,6 +76,11 @@ const Renderer = {
                 if (formulaForDisplay) { // Only append formula if it exists
                     this._appendFormulaDisplay(cellSpan, formulaForDisplay);
                 }
+                // Add histogram for distributions
+                if (cellToRenderData.histogramData && cellToRenderData.histogramData.length > 0) {
+                    const histogramElement = this._renderHistogram(cellToRenderData.histogramData, renderInput.isFullWidth);
+                    cellSpan.appendChild(histogramElement);
+                }
             } else if (typeof cellToRenderData.value === 'number') { // Constant
                 const valueSpan = document.createElement('span');
                 valueSpan.classList.add('value');
@@ -113,9 +118,45 @@ const Renderer = {
         formulaSpan.style.color = '#777';
         formulaSpan.textContent = `(Formula: ${rawFormula})`;
         parentSpan.appendChild(formulaSpan);
+    },
+
+    _renderHistogram: function(histogramData, isFullWidth) {
+        const container = document.createElement('div');
+        container.classList.add('histogram-container');
+        if (isFullWidth) {
+            container.classList.add('full-width');
+        }
+
+        if (!histogramData || histogramData.length === 0) {
+            // container.textContent = '[No histogram data]'; // Optional: for debugging
+            return container; // Return empty container if no data
+        }
+
+        const maxCount = Math.max(...histogramData, 0); // Ensure maxCount is at least 0
+        if (maxCount === 0) { // All bins are zero
+            // Render empty bars or a placeholder message
+            for (let i = 0; i < histogramData.length; i++) {
+                const bar = document.createElement('span');
+                bar.classList.add('histogram-bar');
+                bar.style.height = '1%'; // Minimal height for empty bar
+                container.appendChild(bar);
+            }
+            return container;
+        }
+
+        histogramData.forEach(count => {
+            const bar = document.createElement('span');
+            bar.classList.add('histogram-bar');
+            // Scale height relative to maxCount. Max height is 100% of container.
+            const barHeight = (count / maxCount) * 100;
+            bar.style.height = `${Math.max(1, barHeight)}%`; // Ensure at least 1% height to be visible
+            // title attribute can show the count on hover
+            bar.title = `Count: ${count}`; 
+            container.appendChild(bar);
+        });
+
+        return container;
     }
-    // renderAllCellsInEditor is removed as its approach is no longer used.
-    // A new function for initial full-document rendering (DOM-based) will be needed later.
 };
 
 console.log('renderer.js loaded');

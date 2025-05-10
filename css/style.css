@@ -95,8 +95,9 @@ footer {
     margin-left: 5px;
 }
 
+/* Remove or comment out old placeholder histogram style */
+/*
 .guesstimate-cell .histogram {
-    /* Placeholder for histogram styling */
     display: inline-block;
     width: 50px;
     height: 10px;
@@ -104,6 +105,41 @@ footer {
     margin-left: 5px;
     vertical-align: middle;
 }
+*/
+
+.histogram-container {
+    display: inline-flex; /* Use flex to align bars */
+    align-items: flex-end; /* Align bars to the bottom */
+    width: 60px; /* Default width for inline histogram */
+    height: 20px; /* Default height for inline histogram */
+    border: 1px solid #ccc;
+    background-color: #f8f8f8;
+    margin-left: 5px;
+    vertical-align: middle; /* Align with text */
+    padding: 1px; /* Small padding so bars don't touch edge */
+    box-sizing: border-box;
+}
+
+.histogram-container.full-width {
+    width: 90%; /* Larger width for full-width cells */
+    max-width: 300px;
+    height: 40px; /* Taller for full-width cells */
+    margin-top: 5px; /* Add some space above when full-width */
+    display: flex; /* Ensure it's block-like in flow when part of full-width wrapper */
+}
+
+.histogram-bar {
+    display: inline-block;
+    flex-grow: 1; /* Distribute space equally among bars */
+    background-color: #a0c4ff; /* Light blue for bars */
+    margin-right: 1px; /* Tiny space between bars */
+    min-width: 2px; /* Ensure very small bars are visible */
+}
+
+.histogram-bar:last-child {
+    margin-right: 0;
+}
+
 
 .cell-error {
     background-color: #ffdddd !important;
