@@ -114,6 +114,7 @@ class Cell {
         const initialValue = this.value;
         const initialIsDependencyError = this.isDependencyError;
         const initialSamplesLength = this.samples.length;
+        let outputChanged = false; // Declare outputChanged
         const initialCILower = this.ci ? this.ci.lower : null;
         const initialCIUpper = this.ci ? this.ci.upper : null;
 
