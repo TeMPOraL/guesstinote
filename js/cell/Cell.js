@@ -17,7 +17,7 @@ class Cell {
         this.histogramData = [];  
         
         this.dependencies = new Set();   
-        this.dependents = new Set();     
+        // this.dependents = new Set();  // No longer managed by Cell; CalculationManager handles this
         this._previousDependencies = new Set(); 
 
         this.errorState = null;   
@@ -85,74 +85,21 @@ class Cell {
     }
     
     _updateDependencyLinks(newDependencies, cellsCollection) {
-        const oldDependencies = this.dependencies;
+        const oldDependencies = this.dependencies; // This will be empty on first call for a new cell, or contain previous deps
 
-        // Remove this cell from dependents list of old dependencies no longer used
-        oldDependencies.forEach(depId => {
-            if (!newDependencies.has(depId)) {
-                const depCell = cellsCollection[depId];
-                if (depCell) {
-                    depCell.dependents.delete(this.id);
-                }
-            }
-        });
+        // Logic to update other cells' `dependents` lists is removed from here.
+        // CalculationManager will use `this.dependencies` (set below) and `this._previousDependencies`
+        // (set in `prepareForReevaluation`) to update its own graph.
 
-        // Add this cell to dependents list of all current dependencies
-        newDependencies.forEach(depId => {
-            const depCell = cellsCollection[depId];
-            if (depCell) {
-                depCell.dependents.add(this.id); // Ensure this cell is listed as a dependent
-            } else {
-                // This can happen if a cell is defined that refers to a not-yet-defined cell.
-                // The evaluator will throw an "Unknown cell identifier" error, which is handled.
-                // During the iterative processing in processFullDocument, this link
-                // should eventually be established when this cell (the one calling _updateDependencyLinks)
-                // is re-processed after the dependency cell has been created.
-                console.warn(`Cell ${this.id} attempting to link to dependency ${depId}, but ${depId} not found in cellsCollection yet.`);
-            }
-        });
-        this.dependencies = newDependencies;
-        this._previousDependencies.forEach(oldDepId => {
-            if (!newDependencies.has(oldDepId)) {
-                const oldDepCell = cellsCollection[oldDepId];
-                if (oldDepCell) {
-                    oldDepCell.dependents.delete(this.id);
-                }
-            }
-        });
-        this._previousDependencies.clear(); // Important to clear after use
+        this.dependencies = newDependencies; // Set the new dependencies for this cell
+
+        // Note: _previousDependencies is set in prepareForReevaluation and used by CalculationManager.
+        // It's not cleared here because CalculationManager needs it.
+        // CalculationManager will compare cell.dependencies (new) with cell._previousDependencies (old)
+        // after processFormula returns.
     }
 
-    _triggerDependentsUpdate(cellsCollection, isErrorPropagation = false) {
-        this.dependents.forEach(depId => {
-            const dependentCell = cellsCollection[depId];
-            if (dependentCell) {
-                dependentCell.needsReevaluation = true; // Mark for re-evaluation by the main loop
-                let errorStatusChanged = false;
-                if (isErrorPropagation && this.errorState) {
-                    // Store current error state before setting new one to check if it changed
-                    const oldDepError = dependentCell.errorState;
-                    const oldDepIsDepError = dependentCell.isDependencyError;
-                    dependentCell.setError(`Dependency '${this.id}' error: ${this.errorState}`, true);
-                    if(dependentCell.errorState !== oldDepError || dependentCell.isDependencyError !== oldDepIsDepError) {
-                        errorStatusChanged = true;
-                    }
-                } else if (!isErrorPropagation && dependentCell.isDependencyError && dependentCell.errorState && dependentCell.errorState.includes(`Dependency '${this.id}'`)) {
-                    // If this cell fixed itself, and dependent had an error due to this cell, clear it.
-                    if(dependentCell.clearError()) { // clearError returns true if state changed
-                        errorStatusChanged = true;
-                    }
-                }
-                // If the dependent's error state actually changed, it needs to refresh its display.
-                // The main processing loop will eventually call processFormula on it due to needsReevaluation=true,
-                // which will also call notifyElementsToRefresh if its data/error changes.
-                // Explicitly calling notify here if error changed ensures faster UI update for error propagation.
-                if (errorStatusChanged) {
-                    dependentCell.notifyElementsToRefresh();
-                }
-            }
-        });
-    }
+    // _triggerDependentsUpdate is removed. CalculationManager now handles this logic.
 
     // currentlyEvaluatingParam is passed down from Evaluator when it recursively calls processFormula for a dependency.
     processFormula(cellsCollection = window.Guesstinote.getCellsCollection(), currentlyEvaluatingParam = null) {
