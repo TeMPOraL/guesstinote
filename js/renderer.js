@@ -18,49 +18,60 @@ const Renderer = {
         nameSpan.textContent = cellData.displayName;
         cellSpan.appendChild(nameSpan);
 
-        if (cellData.errorState) { // If errorState has a message string
-            cellSpan.classList.add('cell-error'); // Apply error styling
+        const hasError = !!cellData.errorState;
+        const isDepError = cellData.isDependencyError === true;
+
+        if (hasError) {
             const errorMsgSpan = document.createElement('span');
             errorMsgSpan.classList.add('error-message');
             errorMsgSpan.style.marginLeft = '5px';
-            errorMsgSpan.style.color = '#d8000c'; // Match .cell-error color
             errorMsgSpan.textContent = ` (Error: ${cellData.errorState})`;
-            nameSpan.appendChild(errorMsgSpan); // Append error message to nameSpan or cellSpan
-            // No further rendering of value/CI if there's an error
-        } else if (cellData.errorState === 'dependent-error') { // This case might need review if errorState is now always a string or null
-            cellSpan.classList.add('cell-dependent-error');
-            nameSpan.textContent += ' (Dep. Error)'; // Keep this for now, though direct error messages are prioritized
-        } else if (cellData.mean !== null && cellData.ci && typeof cellData.ci.lower === 'number' && typeof cellData.ci.upper === 'number') {
-            const valueSpan = document.createElement('span');
-            valueSpan.classList.add('value');
-            valueSpan.textContent = `${cellData.mean.toFixed(1)}`; // Removed unit
-            cellSpan.appendChild(valueSpan);
 
-            const ciSpan = document.createElement('span');
-            ciSpan.classList.add('ci');
-            ciSpan.textContent = `(${cellData.ci.lower.toFixed(1)} to ${cellData.ci.upper.toFixed(1)})`;
-            cellSpan.appendChild(ciSpan);
-            this._appendFormulaDisplay(cellSpan, cellData.rawFormula);
-
-            // const histogramSpan = document.createElement('span');
-            // histogramSpan.classList.add('histogram');
-            // histogramSpan.title = (cellData.histogramData || []).join(', ');
-            // // Actual histogram drawing would go here if not using background color placeholder
-            // cellSpan.appendChild(histogramSpan);
-        } else if (typeof cellData.value === 'number') { // Constant
-            const valueSpan = document.createElement('span');
-            valueSpan.classList.add('value');
-            valueSpan.textContent = `${cellData.value}`; // Removed unit
-            cellSpan.appendChild(valueSpan);
-            this._appendFormulaDisplay(cellSpan, cellData.rawFormula);
-
-        } else {
-            const statusSpan = document.createElement('span');
-            statusSpan.textContent = ' (Calculating...)';
-            cellSpan.appendChild(statusSpan);
+            if (isDepError) {
+                cellSpan.classList.add('cell-dependent-error');
+                errorMsgSpan.style.color = '#c87000'; // Orange for dependent error text
+            } else { // Direct error
+                cellSpan.classList.add('cell-error');
+                errorMsgSpan.style.color = '#d8000c'; // Red for direct error text
+            }
+            nameSpan.appendChild(errorMsgSpan);
         }
+
+        // Render value/CI/formula if:
+        // 1. There's no error OR
+        // 2. It's a dependency error (meaning we want to show stale/frozen data)
+        if (!hasError || isDepError) {
+            if (cellData.mean !== null && cellData.ci && typeof cellData.ci.lower === 'number' && typeof cellData.ci.upper === 'number') {
+                const valueSpan = document.createElement('span');
+                valueSpan.classList.add('value');
+                valueSpan.textContent = `${cellData.mean.toFixed(1)}`;
+                cellSpan.appendChild(valueSpan);
+
+                const ciSpan = document.createElement('span');
+                ciSpan.classList.add('ci');
+                ciSpan.textContent = `(${cellData.ci.lower.toFixed(1)} to ${cellData.ci.upper.toFixed(1)})`;
+                cellSpan.appendChild(ciSpan);
+                this._appendFormulaDisplay(cellSpan, cellData.rawFormula);
+
+                // TODO: Histogram rendering could also be here for frozen state
+            } else if (typeof cellData.value === 'number') { // Constant
+                const valueSpan = document.createElement('span');
+                valueSpan.classList.add('value');
+                valueSpan.textContent = `${cellData.value}`;
+                cellSpan.appendChild(valueSpan);
+                this._appendFormulaDisplay(cellSpan, cellData.rawFormula);
+            } else if (!hasError) { 
+                // Only show "Calculating..." if no error at all and no data yet.
+                // If it's a depError and no mean/value, it means it never had data or was an empty array.
+                // In that case, only the name and error message (added above) will show.
+                const statusSpan = document.createElement('span');
+                statusSpan.textContent = ' (Calculating...)';
+                cellSpan.appendChild(statusSpan);
+            }
+        }
+        // If it's a direct error (hasError && !isDepError), nothing from the block above is rendered.
         
-        return cellSpan; // Return the DOM element
+        return cellSpan;
     },
 
     _appendFormulaDisplay: function(parentSpan, rawFormula) {

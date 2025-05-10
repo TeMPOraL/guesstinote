@@ -18,7 +18,8 @@ class Cell {
         
         this.dependencies = new Set();   // Cell IDs this cell depends on
         this.dependents = new Set();     // Cell IDs that depend on this cell
-        this.errorState = null;   // null, 'error', 'dependent-error'
+        this.errorState = null;   // null, or an error message string
+        this.isDependencyError = false; // True if errorState is due to a dependency's error
         this.ast = null;          // Store the AST
 
         this.processFormula();
@@ -34,6 +35,7 @@ class Cell {
         this.ci = { lower: null, upper: null };
         this.histogramData = [];
         this.errorState = null;
+        this.isDependencyError = false; // Reset this flag
         // this.dependencies will be reset by processFormula
         // this.dependents should persist unless managed explicitly elsewhere
         this.processFormula();
@@ -109,24 +111,28 @@ class Cell {
         const initialErrorState = this.errorState;
         const initialMean = this.mean;
         const initialValue = this.value; // For constants
+        const initialIsDependencyError = this.isDependencyError;
 
-        // Reset fields that will be recalculated or determined by formula processing
+        // Reset error states for the current processing attempt.
+        // Data fields (value, samples, mean, etc.) are only cleared on direct error or overwritten on success.
         this.errorState = null;
+        this.isDependencyError = false; 
+        
+        // AST, type, parameters are always reset/recalculated if formula processing proceeds.
         this.ast = null;
-        this.type = null;
+        this.type = null; 
         this.parameters = {};
-        this.value = null;
-        this.samples = [];
-        this.mean = null;
-        this.ci = { lower: null, upper: null };
-        this.histogramData = [];
-        // Dependencies are managed by _updateDependencyLinks called below
+        // Note: this.value, this.samples, etc., are NOT reset here. They hold old values
+        // which might be kept if a dependency error occurs.
 
         const formula = this.rawFormula.trim();
 
         if (formula === '') {
             this.errorState = "Formula cannot be empty.";
-            // console.warn(`Cell ${this.id}: ${this.errorState}`); // Error state will be handled below
+            this.isDependencyError = false; // Empty formula is a direct error
+            // Clear data fields as it's a direct error invalidating previous state
+            this.value = null; this.samples = []; this.mean = null;
+            this.ci = { lower: null, upper: null }; this.histogramData = [];
         } else {
             try {
                 this.ast = FormulaParser.parse(formula);
@@ -159,26 +165,40 @@ class Cell {
                     this.ci = { lower: null, upper: null };
                     this.histogramData = [];
                 }
+                // If successful, errorState is null, isDependencyError is false.
+                // Value, samples, mean, etc., are updated.
             } catch (e) {
                 this.errorState = e.message;
-                // Clear potentially partially computed data
-                this.value = null; this.samples = []; this.mean = null;
-                this.ci = { lower: null, upper: null }; this.histogramData = [];
+                if (e.message && (e.message.startsWith("Dependency cell") || e.message.startsWith("Evaluator Error: Unknown cell identifier"))) {
+                    // Check for "Unknown cell identifier" as well, as it's a form of dependency issue.
+                    this.isDependencyError = true;
+                    // CRITICAL: DO NOT CLEAR this.value, this.samples, this.mean, etc.
+                    // They retain their previous "frozen" state.
+                } else {
+                    // Direct error in this cell's formula parsing or evaluation
+                    this.isDependencyError = false;
+                    // Clear data fields as it's a direct error invalidating previous state
+                    this.value = null; this.samples = []; this.mean = null;
+                    this.ci = { lower: null, upper: null }; this.histogramData = [];
+                }
                 console.error(`Cell ${this.id} Error during formula processing:`, e.message, e.stack);
             }
         }
 
         let stateChanged = false;
-        if (this.errorState !== initialErrorState) {
+        if (this.errorState !== initialErrorState || this.isDependencyError !== initialIsDependencyError) {
             stateChanged = true;
-        } else if (this.errorState === null) { // No error, check value
-            if (this.type === 'constant') { // This type is set during current processing
+        } else if (this.errorState === null) { // No error, and isDependencyError is false. Check value.
+            if (this.type === 'constant') { 
                 if (this.value !== initialValue) stateChanged = true;
-            } else { // Distribution or other non-constant, non-error types
+            } else { 
                 if (this.mean !== initialMean) stateChanged = true;
                 // More robust check for sample changes could be added if mean isn't sufficient
             }
         }
+        // If it's a dependency error, but the error message is the same as before,
+        // and isDependencyError was already true, and mean/value haven't changed (because they are frozen),
+        // then stateChanged might remain false, which is correct.
 
         if (stateChanged) {
             // console.log(`Cell ${this.id} state changed. Updating DOM and triggering dependents.`);
