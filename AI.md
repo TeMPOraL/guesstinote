@@ -67,26 +67,25 @@ To enable robust cell referencing and reactivity, the following aspects need to 
     *   The `_triggerDependentsUpdate` function in `js/cell.js` handles this propagation and should be called after a cell successfully recomputes.
 
 ## Project Files and Structure
-This section outlines the core files of the Guesstinote project.
+This section outlines the core files of the Guesstinote project, reflecting the modularization.
 
-*   `index.html`: The main HTML file. Defines the two-pane layout (HTML editor and preview), UI controls (buttons, inputs), and includes all necessary CSS and JavaScript files.
-*   `css/style.css`: Contains all CSS rules for styling the application, including the layout for the editor and preview panes.
-*   `js/main.js`: The primary JavaScript entry point. Initializes the application, sets up event listeners for the HTML editor (`<textarea>`) and global controls. Manages the `CellsCollection`, orchestrates the update of the preview pane, prunes deleted cells, and triggers the main processing loop for cell calculations. Exposes the global `Guesstinote` object.
-*   `js/cell.js`: Defines the `Cell` class. Each `Cell` instance represents a computational unit, storing its ID, display name, raw formula, parsed AST, calculated value/samples, statistics (mean, CI, histogram data), dependencies, and dependents. It's responsible for processing its own formula (using `FormulaParser` and `Evaluator`) and notifying its associated custom DOM elements (`g-cell`, `g-ref`) of changes.
-*   `js/parser.js`: (Largely Obsolete) Previously responsible for finding `[...]` cell syntax. With the custom element approach, its role is minimal. It's kept for now to avoid breaking potential old imports but does not actively parse document content for cells.
-*   `js/formula_parser.js`: Contains the `FormulaParser` IIFE. This module is responsible for tokenizing and parsing a formula string (e.g., "PERT(1,2,3) + MyCellID") into an Abstract Syntax Tree (AST), which is then used by the `Evaluator`.
-*   `js/evaluator.js`: Contains the `Evaluator` IIFE. This module takes an AST (from `FormulaParser`) and a `CellsCollection` to recursively evaluate the formula, resolve cell dependencies, handle function calls (like PERT, array), and perform arithmetic operations. It returns the calculated result (scalar or an array of samples).
-*   `js/calculator.js`: Contains the `Calculator` object. Provides utility functions for generating samples for various distributions (PERT, Normal from CI, inline data arrays via `processInlineDataArray`), calculating statistics (mean, CI, histogram bins) from sample arrays, and performing arithmetic operations on scalars and sample arrays.
-*   `js/renderer.js`: Contains the `Renderer` object. Its primary function `renderCell` is responsible for generating the visual content (display name, value/stats, histogram) *within the Shadow DOM* of `<g-cell>` and `<g-ref>` custom elements. It also applies appropriate CSS classes to the host custom element for error states.
-*   `js/persistence.js`: Contains the `Persistence` object. Manages saving and loading documents (which are now plaintext HTML containing `<g-cell>` and `<g-ref>` tags) to/from `localStorage`. Handles document IDs, document listing, URL fragment updates, and import/export functionalities.
-*   `js/tutorial.js`: Contains the `Tutorial` object. Provides the name and HTML content (using the new `<g-cell>` and `<g-ref>` syntax) for the initial tutorial document.
-*   `js/elements/GCellElement.js`: Defines the `GCellElement` custom HTML element (tag: `<g-cell>`). This element is responsible for:
-    *   Reading its attributes (`id`, `name`, `formula`, `full-width`).
-    *   Creating or updating the corresponding `Cell` object in the global `CellsCollection`.
-    *   Registering itself with the `Cell` object for display updates.
-    *   Triggering its own rendering by calling `Renderer.renderCell` to populate its Shadow DOM.
-*   `js/elements/GRefElement.js`: Defines the `GRefElement` custom HTML element (tag: `<g-ref>`). This element is responsible for:
-    *   Reading its attributes (`id` of the target cell, `name`, `full-width`).
-    *   Finding the target `Cell` object in `CellsCollection` and subscribing to its updates.
-    *   Triggering its own rendering by calling `Renderer.renderCell` to populate its Shadow DOM with the target cell's information.
+*   `index.html`: The main HTML file. Defines the layout, UI controls, and includes CSS and JavaScript.
+*   `css/style.css`: Main stylesheet (to be split later as per `RefactorPlan.md`).
+*   `js/main.js`: Application entry point, UI event listeners, orchestrates main processing loop. Exposes `Guesstinote` API.
+*   `js/config.js`: Manages global settings like Monte Carlo sample count and histogram bin count.
+*   `js/cell/Cell.js`: Defines the `Cell` class (data model for a single cell).
+*   `js/cell/CellsCollectionManager.js`: Manages the global collection of `Cell` objects.
+*   `js/formula/FormulaParser.js`: Tokenizes and parses formula strings into ASTs. (Content to be provided from original `js/formula_parser.js`)
+*   `js/formula/Evaluator.js`: Evaluates ASTs, resolves cell references, handles functions, delegates math.
+*   `js/math/DistributionGenerator.js`: Generates sample arrays for statistical distributions (PERT, Normal, etc.).
+*   `js/math/DistributionMath.js`: Performs arithmetic operations on sample arrays and scalars.
+*   `js/math/StatisticsCalculator.js`: Calculates basic statistics (mean, CI) from sample arrays.
+*   `js/calculation/CalculationManager.js`: (Placeholder) Manages calculation lifecycle and reactivity.
+*   `js/ui/CellRenderer.js`: Generates HTML for `<g-cell>`/`<g-ref>` Shadow DOM (name, value, errors). Delegates histogram display.
+*   `js/ui/HistogramRenderer.js`: Calculates histogram bin data and generates HTML for histogram display.
+*   `js/elements/GCellElement.js`: Defines the `<g-cell>` custom element.
+*   `js/elements/GRefElement.js`: Defines the `<g-ref>` custom element.
+*   `js/persistence/Persistence.js`: Handles saving/loading documents, import/export.
+*   `js/utils/Tutorial.js`: Provides content for the tutorial document. (Content to be provided from original `js/tutorial.js`)
+*   `js/parser.js`: (Largely Obsolete) Minimal role, may be removed later.
 

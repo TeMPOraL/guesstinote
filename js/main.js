@@ -128,6 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         globalSamplesInput.addEventListener('change', () => {
             console.log('Global samples changed, reprocessing all cells.');
+            const newSampleCount = parseInt(globalSamplesInput.value, 10);
+            if (window.Config && typeof window.Config.updateGlobalSamples === 'function') {
+                Config.updateGlobalSamples(newSampleCount);
+            }
+
             Object.values(CellsCollection).forEach(cell => {
                 if (cell.type !== 'constant' && cell.type !== 'formulaOnlyConstant') {
                      cell.samples = []; 
@@ -163,11 +168,22 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         getDocName: () => docNameInput.value,
         setDocName: (name) => { docNameInput.value = name; },
-        getGlobalSamples: () => parseInt(globalSamplesInput.value, 10) || 5000,
+        // getGlobalSamples is now primarily managed by Config.js, but Guesstinote might still expose it for convenience
+        // if it reads directly from Config or the input. For now, direct input read is fine for Guesstinote API.
+        getGlobalSamples: () => parseInt(globalSamplesInput.value, 10) || 5000, 
         refreshEditor: updatePreviewAndProcessAll, 
-        getCellsCollection: () => CellsCollection,
+        getCellsCollection: () => CellsCollectionManager.getCollection(), // Use CellsCollectionManager
         // updateCellDOM is no longer needed; custom elements refresh via Cell.notifyElementsToRefresh
     };
+
+    // Initialize Config if it has an init method and Guesstinote is ready
+    if (window.Config && typeof window.Config.initialize === 'function') {
+        Config.initialize();
+    }
+    if (window.Config && typeof window.Config.updateGlobalSamples === 'function') {
+        Config.updateGlobalSamples(parseInt(globalSamplesInput.value, 10) || 5000); // Initial sync
+    }
+
 
     initializeApp();
 });

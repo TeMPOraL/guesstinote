@@ -10,7 +10,6 @@ const Persistence = {
     markUnsavedChanges: function() {
         this.hasUnsavedChanges = true;
         // console.log("Persistence: Marked unsaved changes.");
-        // Future: Update UI to indicate unsaved changes (e.g., asterisk on doc name, enable save button)
     },
 
     generateNewDocId: function() {
@@ -61,7 +60,6 @@ const Persistence = {
             if (lastOpenedId) {
                 this.loadDocument(lastOpenedId);
             } else {
-                // IS1: Load tutorial document
                 this.loadTutorialDocument();
             }
         }
@@ -69,16 +67,15 @@ const Persistence = {
 
     loadTutorialDocument: function() {
         console.log("Loading tutorial document...");
+        // Assumes Tutorial is globally available
         if (window.Tutorial && typeof window.Tutorial.getContent === 'function') {
             const tutorialContent = window.Tutorial.getContent();
             const tutorialName = window.Tutorial.getName ? window.Tutorial.getName() : "Tutorial";
             
             window.Guesstinote.setEditorContent(tutorialContent);
             window.Guesstinote.setDocName(tutorialName);
-            // Don't set a docId for the tutorial unless it's saved.
-            // Or, give it a special non-persistent ID? For now, treat as unsaved.
-            window.history.replaceState(null, null, '#'); // Clear hash for tutorial
-            localStorage.removeItem(this.LAST_OPENED_KEY); // Don't make tutorial "last opened" by default
+            window.history.replaceState(null, null, '#'); 
+            localStorage.removeItem(this.LAST_OPENED_KEY); 
             this.hasUnsavedChanges = false;
             
             if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
@@ -86,9 +83,9 @@ const Persistence = {
             }
         } else {
             console.warn("Tutorial content not available.");
-            window.Guesstinote.setEditorContent("<h1>Welcome to Guesstinote!</h1><p>Edit this document or create a new one.</p><p>[MyExample](10 to 20)[units]</p>");
+            window.Guesstinote.setEditorContent("<h1>Welcome!</h1>");
             window.Guesstinote.setDocName("Unsaved Document");
-            this.hasUnsavedChanges = false; // Also treat this as clean initially
+            this.hasUnsavedChanges = false; 
             if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                 window.Guesstinote.refreshEditor();
             }
@@ -99,14 +96,12 @@ const Persistence = {
         if (this.hasUnsavedChanges && !confirm("You have unsaved changes. Create a new document anyway?")) {
             return;
         }
-        // Proceed with creating a new document
-        Persistence.loadTutorialDocument(); // This will set hasUnsavedChanges to false
-        // Clear currentDocId as it's a new, unsaved document
+        Persistence.loadTutorialDocument(); 
         Persistence.currentDocId = null; 
-        window.history.replaceState(null, null, '#'); // Clear hash
+        window.history.replaceState(null, null, '#');
     },
 
-    currentDocId: null, // Store the ID of the currently loaded/saved document
+    currentDocId: null,
 
     handleSaveDocument: function() {
         const content = window.Guesstinote.getEditorContent();
@@ -120,13 +115,12 @@ const Persistence = {
             localStorage.setItem(this.STORAGE_KEY_PREFIX + this.currentDocId, content);
             localStorage.setItem(this.LAST_OPENED_KEY, this.currentDocId);
             this._updateDocList(this.currentDocId, docName);
-            window.history.replaceState(null, null, '#' + this.currentDocId); // Update URL hash
+            window.history.replaceState(null, null, '#' + this.currentDocId); 
             this.hasUnsavedChanges = false;
             alert(`Document "${docName}" saved!`);
-            console.log(`Document saved with ID: ${this.currentDocId}`);
         } catch (e) {
             console.error("Error saving document to localStorage:", e);
-            alert("Error saving document. LocalStorage might be full or disabled.");
+            alert("Error saving document.");
         }
     },
 
@@ -144,36 +138,30 @@ const Persistence = {
                 localStorage.setItem(this.LAST_OPENED_KEY, docId);
                 window.history.replaceState(null, null, '#' + docId);
                 this.hasUnsavedChanges = false;
-                console.log(`Document loaded with ID: ${docId}`);
                 if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                     window.Guesstinote.refreshEditor();
                 }
             } else {
                 alert(`Document with ID "${docId}" not found.`);
-                this.loadTutorialDocument(); // Fallback
+                this.loadTutorialDocument(); 
             }
         } catch (e) {
             console.error("Error loading document from localStorage:", e);
             alert("Error loading document.");
-            this.loadTutorialDocument(); // Fallback
+            this.loadTutorialDocument();
         }
     },
     
     promptLoadDocument: function() {
-        // FR3.1.4: Allow users to load existing documents.
-        // This could be a simple prompt for now, or a modal with a list.
-
         const docList = this._getDocList();
         if (docList.length === 0) {
             alert("No saved documents found.");
             return;
         }
-
         let message = "Enter the number of the document to load:\n";
         docList.forEach((doc, index) => {
             message += `${index + 1}. ${doc.name} (ID: ${doc.id})\n`;
         });
-
         const choiceStr = prompt(message);
         if (choiceStr) {
             const choice = parseInt(choiceStr, 10) - 1;
@@ -186,45 +174,29 @@ const Persistence = {
     },
 
     handleExportDocument: function() {
-        // FR3.1.5: Export as plaintext
         const content = window.Guesstinote.getEditorContent();
         try {
             navigator.clipboard.writeText(content).then(() => {
                 alert("Document content copied to clipboard!");
             }, (err) => {
                 console.error('Failed to copy document content: ', err);
-                alert("Failed to copy content. Please copy manually from the editor.");
-                // As a fallback, could display content in a textarea for manual copy.
+                alert("Failed to copy content.");
             });
         } catch (e) {
             console.error("Clipboard API not available or error:", e);
-            // Fallback: show in a textarea
-            const textarea = document.createElement('textarea');
-            textarea.value = content;
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px'; // Move out of screen
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                alert("Document content copied to clipboard (fallback method)!");
-            } catch (err) {
-                alert("Failed to copy. Please select and copy the content from the editor directly.");
-            }
-            document.body.removeChild(textarea);
+            alert("Failed to copy. Please select and copy the content from the editor directly.");
         }
     },
 
     handleImportDocument: function() {
-        // FR3.1.6: Import from plaintext
         const pastedContent = prompt("Paste your Guesstinote document content here:");
-        if (pastedContent !== null) { // User didn't cancel prompt
+        if (pastedContent !== null) { 
             if (confirm("Importing this content will replace the current document. Continue?")) {
                 window.Guesstinote.setEditorContent(pastedContent);
-                window.Guesstinote.setDocName("Imported Document"); // Or try to parse a name
-                this.currentDocId = null; // Imported doc is unsaved initially
-                this.markUnsavedChanges(); // Imported content should be marked as unsaved
-                window.history.replaceState(null, null, '#'); // Clear hash
+                window.Guesstinote.setDocName("Imported Document"); 
+                this.currentDocId = null; 
+                this.markUnsavedChanges(); 
+                window.history.replaceState(null, null, '#'); 
                 if (window.Guesstinote && typeof window.Guesstinote.refreshEditor === 'function') {
                     window.Guesstinote.refreshEditor();
                 }
@@ -234,4 +206,5 @@ const Persistence = {
     }
 };
 
-console.log('persistence.js loaded');
+window.Persistence = Persistence; // Expose globally
+console.log('js/persistence/Persistence.js loaded');

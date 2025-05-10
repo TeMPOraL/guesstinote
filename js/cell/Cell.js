@@ -183,20 +183,21 @@ class Cell {
             this.setError("Formula cannot be empty.", false); // false for direct error
         } else {
             try {
-                this.ast = FormulaParser.parse(formula);
+                // Assumes FormulaParser is globally available
+                this.ast = FormulaParser.parse(formula); 
                 const newDependencies = this._extractDependencies(this.ast);
                 this._updateDependencyLinks(newDependencies, cellsCollection);
 
                 let evalCurrentlyEvaluatingSet;
                 if (currentlyEvaluatingParam) {
                     // If called from Evaluator for a stale dependency, use the passed set.
-                    // this.id should already be in currentlyEvaluatingParam.
                     evalCurrentlyEvaluatingSet = currentlyEvaluatingParam;
                 } else {
                     // This is a top-level call (e.g., from main.js loop), start a new set.
                     evalCurrentlyEvaluatingSet = new Set([this.id]);
                 }
                 
+                // Assumes Evaluator is globally available
                 const evaluationResult = Evaluator.evaluate(this.ast, cellsCollection, evalCurrentlyEvaluatingSet);
 
                 // Process evaluationResult based on its structure (scalar, array, or object with type/samples)
@@ -206,31 +207,35 @@ class Cell {
                     this.samples = [evaluationResult]; 
                     this.mean = evaluationResult;
                     this.ci = { lower: evaluationResult, upper: evaluationResult };
-                    this.histogramData = Calculator.calculateStats(this.samples).histogramData;
+                    // Histogram data will be calculated by HistogramRenderer as needed
+                    this.histogramData = null; // Mark as needing recalc by renderer
                 } else if (Array.isArray(evaluationResult)) { // Raw array of samples from complex formula
                     this.type = 'distribution'; 
                     this.value = null; 
                     this.samples = evaluationResult; 
                     
                     if (this.samples.length > 0) {
-                        const stats = Calculator.calculateStats(this.samples);
-                        this.mean = stats.mean; this.ci = stats.ci; this.histogramData = stats.histogramData;
+                        // StatisticsCalculator will be used by HistogramRenderer or CellRenderer
+                        const stats = StatisticsCalculator.calculateStats(this.samples);
+                        this.mean = stats.mean; this.ci = stats.ci;
+                        this.histogramData = null; // Mark as needing recalc by renderer
                     } else { 
                         this.mean = null; this.ci = { lower: null, upper: null }; this.histogramData = [];
                     }
-                } else if (evaluationResult && typeof evaluationResult === 'object') { // Structured result from direct functions
+                } else if (evaluationResult && typeof evaluationResult === 'object' && evaluationResult.type) { // Structured result from direct functions
                     this.type = evaluationResult.type; // 'constant', 'pert', 'normal', 'dataArray'
                     if (evaluationResult.type === 'constant') {
                         this.value = evaluationResult.value;
                         this.samples = [this.value];
                         this.mean = this.value; this.ci = {lower: this.value, upper: this.value};
-                        this.histogramData = Calculator.calculateStats(this.samples).histogramData;
+                        this.histogramData = null; // Mark as needing recalc by renderer
                     } else { // A distribution type
                         this.value = null;
                         this.samples = evaluationResult.samples || [];
                         if (this.samples.length > 0) {
-                            const stats = Calculator.calculateStats(this.samples);
-                            this.mean = stats.mean; this.ci = stats.ci; this.histogramData = stats.histogramData;
+                            const stats = StatisticsCalculator.calculateStats(this.samples);
+                            this.mean = stats.mean; this.ci = stats.ci;
+                            this.histogramData = null; // Mark as needing recalc by renderer
                         } else {
                              this.mean = null; this.ci = { lower: null, upper: null }; this.histogramData = [];
                         }
@@ -239,7 +244,7 @@ class Cell {
                     this.setError("Evaluator returned an unexpected result type.", false);
                 }
             } catch (e) {
-                const isDepError = e.message && (e.message.startsWith("Dependency cell") || e.message.includes("Unknown cell identifier") || e.message.includes("Circular dependency detected"));
+                const isDepError = e.message && (e.message.startsWith("Dependency cell") || e.message.includes("Unknown cell identifier") || e.message.includes("Circular dependency detected") || e.message.startsWith("Evaluator Error:"));
                 this.setError(e.message, isDepError);
             }
         }
@@ -274,14 +279,7 @@ class Cell {
             stateChangedForDisplay = true;
         }
         
-        // If this function was fully executed (didn't bail out early), it means processing occurred.
-        // If no specific data/error change was detected by the above conditions,
-        // but processing happened and the cell is not in an error state,
-        // it's still a "refresh" from a potentially uninitialized or "calculating" display state.
-        // This ensures that an initial render gets updated to the actual (potentially empty/null) result.
         if (!stateChangedForDisplay && this.errorState === null) {
-            // This implies the cell was processed, and its state is now definitive (even if empty/null).
-            // This is important for the first time a cell is processed, or if it was calculating.
             stateChangedForDisplay = true;
         }
 
@@ -289,13 +287,12 @@ class Cell {
             this.notifyElementsToRefresh();
         }
 
-        // Trigger dependents only if there was a data change significant for them.
         if (dataChangedForDependents) {
             this._triggerDependentsUpdate(cellsCollection, !!this.errorState);
-            return true; // Indicates a change that affects dependents or this cell's core output
+            return true; 
         }
         
-        return false; // No change significant enough for dependents.
+        return false; 
     }
 
     setError(errorMessage, isDepError = false) {
@@ -305,12 +302,11 @@ class Cell {
             this.isDependencyError = isDepError;
             errorStateActuallyChanged = true;
 
-            if (!isDepError) { // Direct error in this cell, clear its data
+            if (!isDepError) { 
                 this.value = null; this.samples = []; this.mean = null;
                 this.ci = { lower: null, upper: null }; this.histogramData = [];
-                this.type = null; // Type is invalidated by direct error
+                this.type = null; 
             }
-            // If it's a dependency error, data (value, samples, mean, ci, histogram, type) is "frozen" (not cleared here).
         }
         return errorStateActuallyChanged; 
     }
@@ -326,5 +322,5 @@ class Cell {
     }
 }
 
-window.Cell = Cell;
-console.log('cell.js loaded (with custom element support).');
+window.Cell = Cell; // Expose globally
+console.log('js/cell/Cell.js loaded (with custom element support).');

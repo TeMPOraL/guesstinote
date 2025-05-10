@@ -32,16 +32,41 @@
         <p>Global Samples: <input type="number" id="globalSamplesInput" value="5000" min="100" step="100"></p>
     </footer>
 
-    <script src="js/tutorial.js"></script>
-    <script src="js/formula_parser.js"></script> <!-- Must be before evaluator.js and cell.js -->
-    <script src="js/evaluator.js"></script> <!-- Must be before cell.js -->
-    <script src="js/cell.js"></script>
-    <script src="js/parser.js"></script> <!-- Role significantly reduced -->
-    <script src="js/calculator.js"></script>
-    <script src="js/renderer.js"></script>
+    <!-- Core Modules -->
+    <script src="js/config.js"></script>
+    <script src="js/utils/Tutorial.js"></script> <!-- Moved from js/tutorial.js -->
+    
+    <!-- Formula Processing -->
+    <script src="js/formula/FormulaParser.js"></script> <!-- Moved from js/formula_parser.js -->
+    
+    <!-- Math Libraries -->
+    <script src="js/math/DistributionGenerator.js"></script>
+    <script src="js/math/DistributionMath.js"></script>
+    <script src="js/math/StatisticsCalculator.js"></script>
+    
+    <!-- Evaluator (depends on Math and FormulaParser) -->
+    <script src="js/formula/Evaluator.js"></script> <!-- Moved from js/evaluator.js -->
+
+    <!-- Cell Logic (depends on Evaluator, Math libs, FormulaParser) -->
+    <script src="js/cell/Cell.js"></script> <!-- Moved from js/cell.js -->
+    <script src="js/cell/CellsCollectionManager.js"></script>
+
+    <!-- UI Rendering (depends on Cell, HistogramRenderer) -->
+    <script src="js/ui/HistogramRenderer.js"></script>
+    <script src="js/ui/CellRenderer.js"></script> <!-- Moved from js/renderer.js -->
+
+    <!-- Custom Elements (depends on CellRenderer, Cell) -->
     <script src="js/elements/GCellElement.js"></script>
     <script src="js/elements/GRefElement.js"></script>
-    <script src="js/persistence.js"></script>
+
+    <!-- Persistence -->
+    <script src="js/persistence/Persistence.js"></script> <!-- Moved from js/persistence.js -->
+
+    <!-- Main Application Logic (depends on many above) -->
     <script src="js/main.js"></script>
+
+    <!-- Legacy/Other -->
+    <script src="js/parser.js"></script> <!-- Role significantly reduced, review for removal later -->
+    <!-- js/calculator.js is now deprecated and its script tag removed -->
 </body>
 </html>
