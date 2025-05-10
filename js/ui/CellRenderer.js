@@ -51,47 +51,69 @@ const CellRenderer = {
         }
         
         displayName = isReference ? (referenceDisplayName || effectiveCell.displayName) : effectiveCell.displayName;
-        
-        this._createAndAppendSpan(contentWrapper, 'name', displayName);
 
-        // Part 2: Display Error Message (if any)
+        const topRow = document.createElement('div');
+        topRow.className = 'cell-top-row';
+
+        // Cell ID (hidden by default, shown on hover via CSS)
+        this._createAndAppendSpan(topRow, 'cell-id-display', effectiveCell.id ? `[${effectiveCell.id}]` : '');
+        
+        // Cell Name
+        this._createAndAppendSpan(topRow, 'name', displayName);
+
+        // Part 2: Display Error Message (if any) - Placed within topRow for alignment
         if (effectiveCell.errorState) {
             hostElement.classList.add(effectiveCell.isDependencyError ? 'dependency-error-indicator' : 'error-state-indicator');
-            this._createAndAppendSpan(contentWrapper, 'error-message', ` (Error: ${effectiveCell.errorState}${effectiveCell.isDependencyError ? ' - from dependency' : ''})`);
+            this._createAndAppendSpan(topRow, 'error-message', ` (Error: ${effectiveCell.errorState}${effectiveCell.isDependencyError ? ' - from dependency' : ''})`);
         }
 
-        // Part 3: Display Value, CI, Histogram
+        // Part 3: Display Value, CI (inside topRow if no overriding error)
         // Show data if there's no direct error (i.e., no error at all, or it's a dependency error where stale data might be shown)
         if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
             if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant') {
                 if (typeof effectiveCell.value === 'number') {
-                    this._createAndAppendSpan(contentWrapper, 'value', `${parseFloat(effectiveCell.value.toFixed(2))}`);
+                    this._createAndAppendSpan(topRow, 'value', `${parseFloat(effectiveCell.value.toFixed(2))}`);
                 } else if (!effectiveCell.errorState) { // Constant, but value not ready (e.g. still processing)
-                    this._createAndAppendSpan(contentWrapper, 'value', ' (Processing...)', { fontStyle: 'italic' });
+                    this._createAndAppendSpan(topRow, 'value', ' (Processing...)', { fontStyle: 'italic' });
                 }
             } else if (effectiveCell.type === 'dataArray' && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0 && !effectiveCell.errorState) {
                 // This case is for explicitly empty arrays, e.g. formula="array()"
-                this._createAndAppendSpan(contentWrapper, 'value', ' []', { fontStyle: 'italic' });
+                this._createAndAppendSpan(topRow, 'value', ' []', { fontStyle: 'italic' });
             } else if (effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number' && typeof effectiveCell.ci.upper === 'number') {
                 // This block is for distributions (PERT, Normal, non-empty DataArray) with calculated stats
-                this._createAndAppendSpan(contentWrapper, 'value', `${effectiveCell.mean.toFixed(1)}`);
-                this._createAndAppendSpan(contentWrapper, 'ci', `(${effectiveCell.ci.lower.toFixed(1)} to ${effectiveCell.ci.upper.toFixed(1)})`);
-
-                // Delegate to HistogramRenderer
-                if (effectiveCell.samples && effectiveCell.samples.length > 0 && typeof HistogramRenderer !== 'undefined') {
-                    const histogramElement = HistogramRenderer.renderHistogramDisplay(effectiveCell.samples, isFullWidth);
-                    contentWrapper.appendChild(histogramElement); // Histogram is more complex than a simple span
-                }
+                this._createAndAppendSpan(topRow, 'value', `${effectiveCell.mean.toFixed(1)}`);
+                // CSS adds parentheses for .ci, so just provide the content.
+                this._createAndAppendSpan(topRow, 'ci', `${effectiveCell.ci.lower.toFixed(1)} to ${effectiveCell.ci.upper.toFixed(1)}`);
             } else if (!effectiveCell.errorState && effectiveCell.id) { 
                 // Fallback if no error, but not enough data for other displays (e.g., still calculating)
-                this._createAndAppendSpan(contentWrapper, 'value', ' (Calculating...)', { fontStyle: 'italic' });
+                this._createAndAppendSpan(topRow, 'value', ' (Calculating...)', { fontStyle: 'italic' });
             }
         }
+        contentWrapper.appendChild(topRow); // Add the top row to the main content wrapper
+
+        // Histogram (appended to contentWrapper, after topRow)
+        // Show histogram if:
+        // 1. No direct error (or it's a dependency error, allowing stale data display).
+        // 2. Samples exist and are not empty.
+        // 3. HistogramRenderer is available.
+        // 4. Cell type is not 'constant' or 'formulaOnlyConstant'.
+        // 5. Either mean/CI are calculated (indicating a distribution ready for display) OR it's a dataArray (which should show its samples).
+        if ((!effectiveCell.errorState || effectiveCell.isDependencyError) &&
+            effectiveCell.samples && effectiveCell.samples.length > 0 &&
+            typeof HistogramRenderer !== 'undefined' &&
+            (effectiveCell.type !== 'constant' && effectiveCell.type !== 'formulaOnlyConstant') &&
+            ( (effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number') || (effectiveCell.type === 'dataArray') )
+           ) {
+            const histogramElement = HistogramRenderer.renderHistogramDisplay(effectiveCell.samples, isFullWidth);
+            contentWrapper.appendChild(histogramElement);
+        }
         
-        // Part 4: Display Formula (for g-cell definitions)
-        // Only display the formula if it's not a direct number literal (e.g., show for "10+5" or "CellA", but not for "100")
+        // Part 4: Display Formula (for g-cell definitions, appended to contentWrapper, after histogram)
+        // Formula is absolutely positioned by CSS.
+        // Only display the formula if it's not a direct number literal.
         if (!isReference && effectiveCell.rawFormula && (!effectiveCell.ast || effectiveCell.ast.type !== 'NumberLiteral')) {
-            this._createAndAppendSpan(contentWrapper, 'formula-display', `(Formula: ${effectiveCell.rawFormula})`);
+            // The text content for formula-display should be what's shown in the tooltip.
+            this._createAndAppendSpan(contentWrapper, 'formula-display', `formula="${effectiveCell.rawFormula}"`);
         }
         
         hostElement.appendChild(contentWrapper); // Append to host
