@@ -70,22 +70,37 @@ To enable robust cell referencing and reactivity, the following aspects need to 
 This section outlines the core files of the Guesstinote project, reflecting the modularization.
 
 *   `index.html`: The main HTML file. Defines the layout, UI controls, and includes CSS and JavaScript.
-*   `css/style.css`: Main stylesheet (to be split later as per `RefactorPlan.md`).
-*   `js/main.js`: Application entry point, UI event listeners, orchestrates main processing loop. Exposes `Guesstinote` API.
+*   `css/layout/app-layout.css`: Styles for the main page structure and general UI controls.
+*   `css/components/editor.css`: Styles for the HTML editor.
+*   `css/components/cell-widget.css`: Styles for `g-cell` and `g-ref` elements and their internal structure.
+*   `css/components/histogram.css`: Styles specific to the histogram display.
+*   `js/main.js`: Application entry point, UI event listeners, orchestrates main processing loop (delegating to `CalculationManager`). Exposes `Guesstinote` API.
 *   `js/config.js`: Manages global settings like Monte Carlo sample count and histogram bin count.
-*   `js/cell/Cell.js`: Defines the `Cell` class (data model for a single cell).
+*   `js/cell/Cell.js`: Defines the `Cell` class.
 *   `js/cell/CellsCollectionManager.js`: Manages the global collection of `Cell` objects.
-*   `js/formula/FormulaParser.js`: Tokenizes and parses formula strings into ASTs. (Content to be provided from original `js/formula_parser.js`)
+*   `js/formula/FormulaParser.js`: Tokenizes and parses formula strings into ASTs.
 *   `js/formula/Evaluator.js`: Evaluates ASTs, resolves cell references, handles functions, delegates math.
-*   `js/math/DistributionGenerator.js`: Generates sample arrays for statistical distributions (PERT, Normal, etc.).
+*   `js/math/DistributionGenerator.js`: Generates sample arrays for statistical distributions.
 *   `js/math/DistributionMath.js`: Performs arithmetic operations on sample arrays and scalars.
 *   `js/math/StatisticsCalculator.js`: Calculates basic statistics (mean, CI) from sample arrays.
-*   `js/calculation/CalculationManager.js`: (Placeholder) Manages calculation lifecycle and reactivity.
-*   `js/ui/CellRenderer.js`: Generates HTML for `<g-cell>`/`<g-ref>` Shadow DOM (name, value, errors). Delegates histogram display.
+*   `js/calculation/CalculationManager.js`: Manages the calculation lifecycle and runs the iterative processing loop for cells.
+*   `js/ui/CellRenderer.js`: Generates HTML for `<g-cell>`/`<g-ref>` elements.
 *   `js/ui/HistogramRenderer.js`: Calculates histogram bin data and generates HTML for histogram display.
-*   `js/elements/GCellElement.js`: Defines the `<g-cell>` custom element.
-*   `js/elements/GRefElement.js`: Defines the `<g-ref>` custom element.
+*   `js/elements/GCellElement.js`: Defines the `<g-cell>` custom element (no Shadow DOM).
+*   `js/elements/GRefElement.js`: Defines the `<g-ref>` custom element (no Shadow DOM).
 *   `js/persistence/Persistence.js`: Handles saving/loading documents, import/export.
-*   `js/utils/Tutorial.js`: Provides content for the tutorial document. (Content to be provided from original `js/tutorial.js`)
+*   `js/utils/Tutorial.js`: Provides content for the tutorial document (fetched from `html/tutorial-content.html`).
 *   `js/parser.js`: (Largely Obsolete) Minimal role, may be removed later.
+*   `html/tutorial-content.html`: Contains the HTML for the tutorial document.
+
+Removed/Replaced files:
+*   `css/style.css` (Replaced by modular CSS files)
+*   `css/base/variables.css` (Removed as it was unused)
+*   `js/calculator.js` (Functionality moved to `js/math/*` and `js/config.js`)
+*   `js/cell.js` (Replaced by `js/cell/Cell.js`)
+*   `js/formula_parser.js` (Replaced by `js/formula/FormulaParser.js`)
+*   `js/evaluator.js` (Replaced by `js/formula/Evaluator.js`)
+*   `js/renderer.js` (Replaced by `js/ui/CellRenderer.js` and `js/ui/HistogramRenderer.js`)
+*   `js/persistence.js` (Replaced by `js/persistence/Persistence.js`)
+*   `js/tutorial.js` (Replaced by `js/utils/Tutorial.js`)
 
