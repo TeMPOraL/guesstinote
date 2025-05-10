@@ -53,18 +53,50 @@ main {
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-#editor {
-    border: 1px solid #ddd;
-    padding: 15px;
-    min-height: 400px;
-    outline: none;
-    white-space: pre-wrap; /* Preserve whitespace and newlines */
-    word-wrap: break-word; /* Break long words */
+/* Styles for the new two-pane editor layout */
+.editor-container-wrapper {
+    /* This class can be used if an additional wrapper around .editor-container is needed for layout */
+    /* For now, main's padding and max-width will apply if .editor-container is directly in main */
 }
 
-#editor:focus {
-    border-color: #aaa;
+.editor-container {
+    display: flex;
+    flex-direction: row;
+    /* Calculate height based on viewport, minus header and footer estimates */
+    /* Adjust 220px based on actual combined height of header and footer */
+    height: calc(100vh - 220px); 
+    min-height: 400px; /* Minimum workable height */
+    border: 1px solid #ccc; /* Border around the two panes */
+    margin: 20px 0; /* Consistent with main's original top/bottom margin if it had one */
+    background: #fff; /* Background for the editor area */
+    box-shadow: 0 0 8px rgba(0,0,0,0.08); /* Subtle shadow for the editor block */
 }
+
+.editor-pane { /* For the <textarea> */
+    flex: 1; /* Take half the space */
+    padding: 15px;
+    border: none; /* Border is on .editor-container */
+    border-right: 1px solid #ccc; /* Separator line */
+    font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre; /* Preserve whitespace for HTML/markdown editing */
+    overflow: auto; /* Scrollbars if content exceeds dimensions */
+    resize: none; /* Disable manual resize of textarea */
+    outline: none; /* Remove default focus outline */
+}
+
+.preview-pane { /* For the <div> rendering HTML */
+    flex: 1; /* Take the other half */
+    padding: 15px;
+    overflow-y: auto; /* Vertical scrollbar if needed */
+    border: none;
+    outline: none;
+    white-space: normal; /* Allow normal HTML rendering flow */
+    word-wrap: break-word;
+}
+
+/* Old #editor styles are removed as #editor div is replaced */
 
 footer {
     text-align: center;
@@ -74,104 +106,38 @@ footer {
     margin-top: 20px;
 }
 
-/* Basic styling for cells (placeholders) */
-.guesstimate-cell {
-    display: inline-block;
-    background-color: #eef8ff;
-    border: 1px solid #cce7ff;
-    padding: 2px 5px;
-    border-radius: 3px;
-    cursor: pointer;
-}
+/* Styling for custom elements (g-cell, g-ref) will primarily be within their Shadow DOM.
+   However, some host styles might be useful for layout or global error states. */
 
-.guesstimate-cell .name {
-    font-weight: bold;
-}
-
-.guesstimate-cell .value,
-.guesstimate-cell .ci {
-    font-size: 0.8em;
-    color: #555;
-    margin-left: 5px;
-}
-
-/* Remove or comment out old placeholder histogram style */
-/*
-.guesstimate-cell .histogram {
-    display: inline-block;
-    width: 50px;
-    height: 10px;
-    background-color: #ddd;
-    margin-left: 5px;
-    vertical-align: middle;
-}
+/* Old .guesstimate-cell, .histogram-container, .histogram-bar, .cell-error, 
+   .cell-dependent-error, .guesstimate-cell-full-width-wrapper styles are removed.
+   Styling is now encapsulated in custom elements or handled by :host selectors if needed globally.
+   The Renderer will inject necessary styles into the Shadow DOM of each custom element.
 */
 
-.histogram-container {
-    display: inline-flex; /* Use flex to align bars */
-    align-items: flex-end; /* Align bars to the bottom */
-    width: 60px; /* Default width for inline histogram */
-    height: 20px; /* Default height for inline histogram */
-    border: 1px solid #ccc;
-    background-color: #f8f8f8;
-    margin-left: 5px;
-    vertical-align: middle; /* Align with text */
-    padding: 1px; /* Small padding so bars don't touch edge */
-    box-sizing: border-box;
+/* Minimal host styling for custom elements if needed for layout outside shadow DOM */
+g-cell, g-ref {
+    /* display: inline-block; by default from browser or shadow DOM style */
+    /* vertical-align: middle; by default from browser or shadow DOM style */
 }
 
-.histogram-container.full-width {
-    width: 90%; /* Larger width for full-width cells */
-    max-width: 300px;
-    height: 40px; /* Taller for full-width cells */
-    margin-top: 5px; /* Add some space above when full-width */
-    display: flex; /* Ensure it's block-like in flow when part of full-width wrapper */
-}
-
-.histogram-bar {
-    display: inline-block;
-    flex-grow: 1; /* Distribute space equally among bars */
-    background-color: #a0c4ff; /* Light blue for bars */
-    margin-right: 1px; /* Tiny space between bars */
-    min-width: 2px; /* Ensure very small bars are visible */
-}
-
-.histogram-bar:last-child {
-    margin-right: 0;
-}
-
-
-.cell-error {
-    background-color: #ffdddd !important;
-    border-color: #ffaaaa !important;
-    color: #d8000c !important;
-}
-
-.cell-dependent-error {
-    background-color: #fff0dd !important;
-    border-color: #ffccaa !important;
-}
-
-/* Styles for Full-Width Cells */
-.guesstimate-cell-full-width-wrapper {
-    display: block; /* Makes it take full width */
+/* Example of how you might style the host element based on an attribute for full-width */
+g-cell[full-width-active="true"], 
+g-ref[full-width-active="true"] {
+    display: block;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
-    padding: 8px; 
-    background-color: #f9f9f9; 
-    border: 1px solid #eee; 
-    border-radius: 4px;
 }
 
-/* The actual cell span inside the wrapper remains inline-block by default */
-/* .guesstimate-cell-full-width-wrapper .guesstimate-cell { */
-    /* No specific changes needed unless we want to force its width too */
-/* } */
-
-/* Example for a larger histogram in full-width cells (FR3.2.5 - future detail) */
-/*
-.guesstimate-cell-full-width-wrapper .guesstimate-cell .histogram {
-    width: 200px; 
-    height: 20px;
+/* Global error indicators that can be applied to the host custom element */
+.error-state-indicator { 
+    /* These classes are applied to the host custom element by the Renderer */
+    /* Example: outline: 2px solid red; */
+    /* Actual styling is in Renderer's injected styles for better encapsulation */
 }
-*/
+.dependency-error-indicator {
+    /* Example: outline: 2px solid orange; */
+}
+.cell-not-found-indicator {
+    /* Example: outline: 2px dashed red; */
+}
