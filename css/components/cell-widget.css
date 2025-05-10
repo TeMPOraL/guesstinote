@@ -46,7 +46,7 @@
     flex-wrap: wrap; /* Allow wrapping if content is too long */
 }
 
-:host([full-width-active="true"]) .content-wrapper {
+:host([full-width-active]) .content-wrapper { /* Corrected selector */
     display: block; /* Full width content flows as block */
 }
 
