@@ -83,21 +83,35 @@ const CellRenderer = {
         const nameSpan = document.createElement('span'); nameSpan.className = 'name'; nameSpan.textContent = displayName;
         contentWrapper.appendChild(nameSpan);
 
+        // Part 2: Display Error Message (if any)
         if (effectiveCell.errorState) {
             hostElement.classList.add(effectiveCell.isDependencyError ? 'dependency-error-indicator' : 'error-state-indicator');
-            const errorSpan = document.createElement('span'); errorSpan.className = 'error-message';
-            errorSpan.textContent = ` (Error: ${effectiveCell.errorState})`;
+            const errorSpan = document.createElement('span');
+            errorSpan.className = 'error-message';
+            errorSpan.textContent = ` (Error: ${effectiveCell.errorState}${effectiveCell.isDependencyError ? ' - from dependency' : ''})`;
             contentWrapper.appendChild(errorSpan);
         }
 
+        // Part 3: Display Value, CI, Histogram
+        // Show data if there's no direct error (i.e., no error at all, or it's a dependency error where stale data might be shown)
         if (!effectiveCell.errorState || effectiveCell.isDependencyError) {
             if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant') {
                 if (typeof effectiveCell.value === 'number') {
                     const valueSpan = document.createElement('span'); valueSpan.className = 'value';
                     valueSpan.textContent = `${parseFloat(effectiveCell.value.toFixed(2))}`;
                     contentWrapper.appendChild(valueSpan);
+                } else if (!effectiveCell.errorState) { // Constant, but value not ready (e.g. still processing)
+                    const statusSpan = document.createElement('span'); statusSpan.className = 'value';
+                    statusSpan.textContent = ' (Processing...)'; statusSpan.style.fontStyle = 'italic';
+                    contentWrapper.appendChild(statusSpan);
                 }
+            } else if (effectiveCell.type === 'dataArray' && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0 && !effectiveCell.errorState) {
+                // This case is for explicitly empty arrays, e.g. formula="array()"
+                const valueSpan = document.createElement('span'); valueSpan.className = 'value';
+                valueSpan.textContent = ' []'; valueSpan.style.fontStyle = 'italic';
+                contentWrapper.appendChild(valueSpan);
             } else if (effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number' && typeof effectiveCell.ci.upper === 'number') {
+                // This block is for distributions (PERT, Normal, non-empty DataArray) with calculated stats
                 const valueSpan = document.createElement('span'); valueSpan.className = 'value';
                 valueSpan.textContent = `${effectiveCell.mean.toFixed(1)}`;
                 contentWrapper.appendChild(valueSpan);
@@ -111,17 +125,15 @@ const CellRenderer = {
                     const histogramElement = HistogramRenderer.renderHistogramDisplay(effectiveCell.samples, isFullWidth);
                     contentWrapper.appendChild(histogramElement);
                 }
-            } else if (effectiveCell.errorState === null && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0) {
-                const valueSpan = document.createElement('span'); valueSpan.className = 'value';
-                valueSpan.textContent = ' []'; valueSpan.style.fontStyle = 'italic';
-                contentWrapper.appendChild(valueSpan);
-            } else if (!effectiveCell.errorState && effectiveCell.id) {
-                const statusSpan = document.createElement('span'); statusSpan.className = 'value'; 
+            } else if (!effectiveCell.errorState && effectiveCell.id) { 
+                // Fallback if no error, but not enough data for other displays (e.g., still calculating)
+                const statusSpan = document.createElement('span'); statusSpan.className = 'value';
                 statusSpan.textContent = ' (Calculating...)'; statusSpan.style.fontStyle = 'italic';
                 contentWrapper.appendChild(statusSpan);
             }
         }
         
+        // Part 4: Display Formula (for g-cell definitions)
         if (!isReference && effectiveCell.rawFormula) {
             const formulaSpan = document.createElement('span'); formulaSpan.className = 'formula-display';
             formulaSpan.textContent = `(Formula: ${effectiveCell.rawFormula})`;
