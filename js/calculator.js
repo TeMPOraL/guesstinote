@@ -69,6 +69,10 @@ const Calculator = {
     // Placeholder for inline data array
     // FR3.3.5: Upsample/downsample to global sample count
     processInlineDataArray: function(dataArray) {
+        if (!dataArray || dataArray.length === 0) {
+            return []; // Return an empty array if input is empty
+        }
+
         const numSamples = this.getGlobalSamples();
         if (dataArray.length === numSamples) {
             return [...dataArray].sort((a,b) => a-b);
