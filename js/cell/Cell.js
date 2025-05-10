@@ -303,13 +303,18 @@ class Cell {
         //     }
         // }
 
+        // The `dataChangedForDependents` flag effectively becomes `outputChanged`
+        outputChanged = dataChangedForDependents;
 
-        if (dataChangedForDependents) {
-            this._triggerDependentsUpdate(cellsCollection, !!this.errorState);
-            return true; // Indicates that this cell's state changed in a way that might affect others.
+        if (stateChangedForDisplay) { // If display changed, notify elements
+            this.notifyElementsToRefresh();
         }
         
-        return false; // No significant change occurred that would affect dependents.
+        // Return true if the cell's output changed, signaling to CalculationManager
+        // that dependents might need reevaluation.
+        // CalculationManager will also use cell.dependencies and cell._previousDependencies
+        // to update its graph.
+        return { outputChanged }; 
     }
 
     setError(errorMessage, isDepError = false) {

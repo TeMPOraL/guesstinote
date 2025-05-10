@@ -5,9 +5,46 @@ const CalculationManager = (() => {
     // processCellCalculations and parts of pruneCellsCollection,
     // and manage the dependency graph updates more centrally.
 
+    // Stores the dependency graph:
+    // dependentsMap: cellId -> Set of cell IDs that depend on it.
+    // dependenciesMap: cellId -> Set of cell IDs it depends on. (Mirrors cell.dependencies)
+    let _dependentsMap = new Map();
+    let _dependenciesMap = new Map(); // Primarily for pruning convenience
+
+    function _updateDependencyGraph(cellId, newDependencies, oldDependencies) {
+        // Update dependenciesMap for the current cell
+        _dependenciesMap.set(cellId, new Set(newDependencies));
+
+        // Update dependentsMap for new dependencies
+        newDependencies.forEach(depId => {
+            if (!_dependentsMap.has(depId)) {
+                _dependentsMap.set(depId, new Set());
+            }
+            _dependentsMap.get(depId).add(cellId);
+        });
+
+        // Update dependentsMap for old dependencies that are no longer dependencies
+        oldDependencies.forEach(oldDepId => {
+            if (!newDependencies.has(oldDepId)) {
+                if (_dependentsMap.has(oldDepId)) {
+                    _dependentsMap.get(oldDepId).delete(cellId);
+                    if (_dependentsMap.get(oldDepId).size === 0) {
+                        _dependentsMap.delete(oldDepId);
+                    }
+                }
+            }
+        });
+    }
+    
+    function _clearDependencyGraph() {
+        _dependentsMap.clear();
+        _dependenciesMap.clear();
+    }
+
     return {
         initialize: function() {
             // console.log("CalculationManager initialized.");
+            _clearDependencyGraph();
         },
 
         processCellCalculations: function() {
@@ -15,7 +52,7 @@ const CalculationManager = (() => {
             const currentCells = CellsCollectionManager.getCollection();
             
             for (const id in currentCells) {
-                currentCells[id].prepareForReevaluation();
+                currentCells[id].prepareForReevaluation(); // This sets cell._previousDependencies
             }
             
             const cellsToProcess = Object.keys(currentCells);
@@ -30,11 +67,21 @@ const CalculationManager = (() => {
 
                 cellsToProcess.forEach(cellId => {
                     const cell = currentCells[cellId];
-                    if (cell && (cell.needsReevaluation || !cell.isProcessedInCurrentCycle())) { 
-                        // processFormula defaults to using CellsCollectionManager.getCollection() if no arg passed,
-                        // or we can pass currentCells explicitly.
-                        if (cell.processFormula(currentCells)) { 
+                    if (cell && (cell.needsReevaluation || !cell.isProcessedInCurrentCycle())) {
+                        const processResult = cell.processFormula(currentCells); // Now returns { outputChanged }
+                        
+                        // Update dependency graph based on cell.dependencies and cell._previousDependencies
+                        _updateDependencyGraph(cell.id, cell.dependencies, cell._previousDependencies);
+
+                        if (processResult && processResult.outputChanged) {
                             changedInIteration = true;
+                            // Trigger dependents
+                            const dependentsToUpdate = _dependentsMap.get(cell.id) || new Set();
+                            dependentsToUpdate.forEach(dependentId => {
+                                if (currentCells[dependentId]) {
+                                    currentCells[dependentId].needsReevaluation = true;
+                                }
+                            });
                         }
                     }
                 });
@@ -72,31 +119,42 @@ const CalculationManager = (() => {
                 if (id) activeCellIds.add(id);
             });
     
-            const currentCells = CellsCollectionManager.getCollection();
-            for (const id in currentCells) {
-                if (!activeCellIds.has(id)) {
-                    // console.log(`CalculationManager: Pruning cell ${id} from CellsCollection.`);
-                    const cellToRemove = CellsCollectionManager.getCell(id);
-                    if (cellToRemove) {
-                        // Notify dependents that this cell is gone
-                        cellToRemove.dependents.forEach(depId => {
-                            const dependentCell = CellsCollectionManager.getCell(depId);
-                            if (dependentCell) {
-                                dependentCell.dependencies.delete(id);
-                                dependentCell.needsReevaluation = true; 
+            const currentCells = CellsCollectionManager.getCollection(); // Get a snapshot
+            const allCellIdsInManager = Object.keys(currentCells);
+
+            allCellIdsInManager.forEach(idToRemove => {
+                if (!activeCellIds.has(idToRemove)) {
+                    // console.log(`CalculationManager: Pruning cell ${idToRemove}`);
+                    
+                    // Update dependency graph:
+                    // 1. For each cell that idToRemove depended on, remove idToRemove from their dependents list.
+                    const dependenciesOfPrunedCell = _dependenciesMap.get(idToRemove) || new Set();
+                    dependenciesOfPrunedCell.forEach(depId => {
+                        if (_dependentsMap.has(depId)) {
+                            _dependentsMap.get(depId).delete(idToRemove);
+                            if (_dependentsMap.get(depId).size === 0) {
+                                _dependentsMap.delete(depId);
                             }
-                        });
-                        // Remove from its dependencies' dependents list
-                         cellToRemove.dependencies.forEach(depId => {
-                            const dependencyCell = CellsCollectionManager.getCell(depId);
-                            if (dependencyCell) {
-                                dependencyCell.dependents.delete(id);
-                            }
-                        });
-                    }
-                    CellsCollectionManager.removeCell(id); 
+                        }
+                    });
+                    _dependenciesMap.delete(idToRemove);
+
+                    // 2. For each cell that depended on idToRemove, remove idToRemove from their dependencies list
+                    //    and mark them for re-evaluation.
+                    const dependentsOfPrunedCell = _dependentsMap.get(idToRemove) || new Set();
+                    dependentsOfPrunedCell.forEach(dependentId => {
+                        const dependentCell = currentCells[dependentId]; // Use snapshot
+                        if (dependentCell) {
+                            dependentCell.dependencies.delete(idToRemove);
+                            dependentCell.needsReevaluation = true;
+                            // dependentCell.setError(`Dependency '${idToRemove}' was removed.`, true); // Optional
+                        }
+                    });
+                    _dependentsMap.delete(idToRemove);
+
+                    CellsCollectionManager.removeCell(idToRemove); 
                 }
-            }
+            });
         }
     };
 })();
