@@ -5,6 +5,7 @@
 
 /* Element base styles (formerly :host) */
 g-cell, g-ref {
+    position: relative; /* For absolute positioning of formula-display */
     display: inline-block; /* Default display for cells/refs */
     padding: 3px 6px;
     border: 1px solid #ddd;
@@ -45,14 +46,41 @@ g-ref.cell-not-found-indicator {
 
 /* Internal structure styling */
 .content-wrapper {
-    display: inline-flex; /* Allows histogram to align with text */
-    align-items: baseline;
-    flex-wrap: wrap; /* Allow wrapping if content is too long */
+    display: flex; 
+    flex-direction: column;
+    align-items: flex-start; /* Align items like histogram to the start of the cross axis */
 }
 
 g-cell[full-width-active] .content-wrapper, 
 g-ref[full-width-active] .content-wrapper { /* Corrected selector */
-    display: block; /* Full width content flows as block */
+    display: flex; /* Still flex, but direction is column */
+    flex-direction: column;
+    align-items: stretch; /* Stretch items like histogram in full-width mode */
+}
+
+.cell-top-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: nowrap; /* Keep ID, name, value, CI on one line */
+    width: 100%; /* Take full width of the content-wrapper */
+}
+
+.cell-id-display {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out, visibility 0s linear 0.15s;
+    font-size: 0.8em;
+    color: #777;
+    font-style: italic;
+    margin-right: 0.5em;
+    white-space: nowrap;
+}
+
+g-cell:hover .cell-id-display,
+g-ref:hover .cell-id-display {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0s;
 }
 
 .name {
@@ -83,9 +111,23 @@ g-ref[full-width-active] .content-wrapper { /* Corrected selector */
     opacity: 0;         /* Fully transparent */
     font-size: 0.8em;
     color: #7a7a7a;
-    margin-left: 5px;
+    /* margin-left: 5px; Removed, will be absolutely positioned */
     font-style: italic;
     transition: opacity 0.15s ease-in-out, visibility 0s linear 0.15s; /* Smooth fade */
+    
+    position: absolute;
+    bottom: 2px; /* Adjust to sit nicely, possibly over histogram's bottom edge or just below cell */
+    left: 5px;
+    background: rgba(248, 249, 250, 0.95); /* Light background for tooltip effect */
+    border: 1px solid #ccc;
+    padding: 2px 5px;
+    border-radius: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    z-index: 100; /* Ensure it's on top */
+    max-width: calc(100% - 10px); /* Prevent overflow from cell boundaries */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 g-cell:hover .formula-display, 
@@ -94,6 +136,13 @@ g-ref:hover .formula-display { /* Changed selector */
     opacity: 1;          /* Fully opaque */
     transition-delay: 0s; /* Apply immediately on hover */
 }
+
+/* Adjust histogram container margin if needed, now that it's in a flex column */
+.content-wrapper > .histogram-container { /* Target direct child histogram */
+    margin-top: 4px; 
+    margin-bottom: 4px; /* Space for formula display if it were not absolute, or just breathing room */
+}
+
 
 .error-message {
     color: #ff3860;
