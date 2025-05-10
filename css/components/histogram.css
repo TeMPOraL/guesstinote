@@ -2,12 +2,11 @@
 /* Styles specific to the histogram display */
 
 .histogram-container {
-    display: flex; /* Was inline-flex, flex is fine if parent is column and handles alignment */
+    display: flex; 
     align-items: flex-end;
-    height: 40px;  /* Default height */
-    width: 80px;   /* Fixed width for inline histograms */
-    /* min-width: 30px; Replaced by fixed width */
-    margin-left: 0; /* No longer needed if aligned by flex parent */
+    height: 100%;  /* Fill the .cell-viz-area height */
+    width: 100%;   /* Fill the .cell-viz-area width */
+    margin-left: 0; 
     border-left: 1px solid #ccc;
     border-bottom: 1px solid #ccc;
     padding-top: 2px; /* Space for bars not to touch top if border added there */
@@ -27,14 +26,16 @@
 }
 
 /* Styles for full-width histograms */
-g-cell[full-width-active] .histogram-container, 
-g-ref[full-width-active] .histogram-container { /* Changed selector */
-    height: 130px; /* Updated height for full-width */
-    width: 100%;  /* Take full available width */
-    margin-top: 5px; /* Add some space above when it's block display */
+g-cell[full-width-active] .cell-viz-area .histogram-container, 
+g-ref[full-width-active] .cell-viz-area .histogram-container {
+    /* height and width are already 100% of .cell-viz-area, 
+       and .cell-viz-area gets its specific full-width dimensions.
+       So, no specific override needed here for .histogram-container itself
+       if .cell-viz-area is correctly sized. */
+    /* margin-top: 5px; This margin is now on .cell-viz-area for full-width */
 }
 
-/* In full-width, bars will grow to fill the container.
+/* In full-width, bars will grow to fill the container. 
    No specific change needed for .histogram-bar itself for full-width height,
    as its height is controlled by its content (which is set by JS).
    The container height dictates the available space.

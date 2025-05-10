@@ -60,26 +60,34 @@ const CellRenderer = {
         }
     },
 
-    _appendTopRowElements: function(topRow, effectiveCell, displayName) {
+    _appendInfoAreaElements: function(infoArea, effectiveCell, displayName) {
         // Cell ID (hidden by default, shown on hover via CSS)
-        this._createAndAppendSpan(topRow, 'cell-id-display', effectiveCell.id ? `[${effectiveCell.id}]` : '');
+        this._createAndAppendSpan(infoArea, 'cell-id-display', effectiveCell.id ? `[${effectiveCell.id}]` : '');
         // Cell Name
-        this._createAndAppendSpan(topRow, 'name', displayName);
-        // Error Message (if any)
-        this._appendErrorDisplay(topRow, effectiveCell);
+        this._createAndAppendSpan(infoArea, 'name', displayName);
+        // Error Message (if any) - Appears inline with other info
+        this._appendErrorDisplay(infoArea, effectiveCell);
         // Value and CI
-        this._appendValueAndCIDisplay(topRow, effectiveCell);
+        this._appendValueAndCIDisplay(infoArea, effectiveCell);
     },
 
-    _appendHistogramDisplay: function(contentWrapper, effectiveCell, isFullWidth) {
-        if ((!effectiveCell.errorState || effectiveCell.isDependencyError) &&
-            effectiveCell.samples && effectiveCell.samples.length > 0 &&
-            typeof HistogramRenderer !== 'undefined' &&
-            (effectiveCell.type !== 'constant' && effectiveCell.type !== 'formulaOnlyConstant') &&
-            ((effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number') || (effectiveCell.type === 'dataArray'))) {
+    _appendVisualizationArea: function(vizArea, effectiveCell, isFullWidth) {
+        const shouldRenderHistogram = (!effectiveCell.errorState || effectiveCell.isDependencyError) &&
+                                    effectiveCell.samples && effectiveCell.samples.length > 0 &&
+                                    typeof HistogramRenderer !== 'undefined' &&
+                                    (effectiveCell.type !== 'constant' && effectiveCell.type !== 'formulaOnlyConstant') &&
+                                    ((effectiveCell.mean !== null && effectiveCell.ci && typeof effectiveCell.ci.lower === 'number') || (effectiveCell.type === 'dataArray'));
+
+        if (shouldRenderHistogram) {
             const histogramElement = HistogramRenderer.renderHistogramDisplay(effectiveCell.samples, isFullWidth);
-            contentWrapper.appendChild(histogramElement);
+            vizArea.appendChild(histogramElement);
+        } else if (!effectiveCell.errorState || effectiveCell.isDependencyError) { // Only show placeholder if not in a direct error state that hides value
+            // Show placeholder for scalars or when histogram isn't applicable but there's no overriding error
+             if (effectiveCell.type === 'constant' || effectiveCell.type === 'formulaOnlyConstant' || effectiveCell.value !== null) {
+                this._createAndAppendSpan(vizArea, 'scalar-placeholder', '#');
+            }
         }
+        // If there's a direct error and no histogram, vizArea might remain empty, which is fine.
     },
 
     _appendFormulaHint: function(contentWrapper, effectiveCell, isReference) {
@@ -119,13 +127,19 @@ const CellRenderer = {
 
         const displayName = isReference ? (referenceDisplayName || effectiveCell.displayName) : effectiveCell.displayName;
 
-        const topRow = document.createElement('div');
-        topRow.className = 'cell-top-row';
-        this._appendTopRowElements(topRow, effectiveCell, displayName);
-        contentWrapper.appendChild(topRow);
+        // Create visualization area (histogram or placeholder)
+        const vizArea = document.createElement('div');
+        vizArea.className = 'cell-viz-area';
+        this._appendVisualizationArea(vizArea, effectiveCell, isFullWidth);
+        contentWrapper.appendChild(vizArea);
 
-        this._appendHistogramDisplay(contentWrapper, effectiveCell, isFullWidth);
+        // Create info area (ID, name, value, CI, error)
+        const infoArea = document.createElement('div');
+        infoArea.className = 'cell-info-area';
+        this._appendInfoAreaElements(infoArea, effectiveCell, displayName);
+        contentWrapper.appendChild(infoArea);
         
+        // Formula hint is absolutely positioned relative to contentWrapper (which is relative to g-cell)
         this._appendFormulaHint(contentWrapper, effectiveCell, isReference);
         
         hostElement.appendChild(contentWrapper);

@@ -47,23 +47,55 @@ g-ref.cell-not-found-indicator {
 /* Internal structure styling */
 .content-wrapper {
     display: flex; 
-    flex-direction: column;
-    align-items: flex-start; /* Align items like histogram to the start of the cross axis */
+    flex-direction: row; /* Default: Viz area and Info area side-by-side */
+    align-items: flex-end; /* Align items to the bottom, so text baseline aligns with viz bottom */
+    position: relative; /* For absolute positioning of formula-display */
 }
 
 g-cell[full-width-active] .content-wrapper, 
-g-ref[full-width-active] .content-wrapper { /* Corrected selector */
-    display: flex; /* Still flex, but direction is column */
-    flex-direction: column;
-    align-items: stretch; /* Stretch items like histogram in full-width mode */
+g-ref[full-width-active] .content-wrapper {
+    flex-direction: column; /* Stack info area and viz area vertically */
+    align-items: stretch;   /* Stretch children to full width */
 }
 
-.cell-top-row {
+.cell-viz-area {
+    flex-shrink: 0; /* Prevent shrinking */
+    width: 80px;    /* Fixed width for inline display */
+    height: 40px;   /* Fixed height for inline display, matches histogram default */
+    margin-right: 8px;
+    display: flex;
+    align-items: center; /* Center placeholder vertically */
+    justify-content: center; /* Center placeholder horizontally */
+    overflow: hidden; /* Ensure histogram doesn't overflow its fixed bounds */
+}
+
+g-cell[full-width-active] .cell-viz-area {
+    width: 100%;
+    height: 130px; /* Taller histogram for full-width */
+    margin-right: 0;
+    margin-top: 5px; /* Space between info area and viz area in full-width */
+}
+
+.scalar-placeholder {
+    font-size: 1.8em; /* Larger placeholder text */
+    color: #ccc;
+    font-family: monospace;
+    line-height: 1; /* Ensure it centers well */
+}
+
+.cell-info-area { /* Replaces .cell-top-row */
     display: flex;
     align-items: baseline;
-    flex-wrap: nowrap; /* Keep ID, name, value, CI on one line */
-    width: 100%; /* Take full width of the content-wrapper */
+    flex-wrap: nowrap; 
+    /* width: 100%; Removed, let it size by content in row layout */
+    /* In column layout (full-width), parent .content-wrapper align-items:stretch handles width */
 }
+
+g-cell[full-width-active] .cell-info-area {
+    width: 100%; /* Ensure it takes full width before histogram in column layout */
+    order: -1; /* Display info area before viz area in full-width mode */
+}
+
 
 .cell-id-display {
     visibility: hidden;
@@ -116,8 +148,8 @@ g-ref:hover .cell-id-display {
     transition: opacity 0.15s ease-in-out, visibility 0s linear 0.15s; /* Smooth fade */
     
     position: absolute;
-    bottom: 2px; /* Adjust to sit nicely, possibly over histogram's bottom edge or just below cell */
-    left: 5px;
+    top: -1.3em; /* Position above the cell content area */
+    right: 3px;
     background: rgba(248, 249, 250, 0.95); /* Light background for tooltip effect */
     border: 1px solid #ccc;
     padding: 2px 5px;
@@ -137,11 +169,9 @@ g-ref:hover .formula-display { /* Changed selector */
     transition-delay: 0s; /* Apply immediately on hover */
 }
 
-/* Adjust histogram container margin if needed, now that it's in a flex column */
-.content-wrapper > .histogram-container { /* Target direct child histogram */
-    margin-top: 4px; 
-    margin-bottom: 4px; /* Space for formula display if it were not absolute, or just breathing room */
-}
+/* Adjust histogram container margin if needed. Now it's inside .cell-viz-area */
+/* .content-wrapper > .histogram-container rule is no longer applicable directly */
+/* .cell-viz-area handles margins for the histogram container indirectly. */
 
 
 .error-message {
