@@ -155,7 +155,15 @@ const Renderer = {
                     const histogramElement = this._renderHistogram(effectiveCell.histogramData, isFullWidth);
                     contentWrapper.appendChild(histogramElement);
                 }
+            } else if (effectiveCell.errorState === null && Array.isArray(effectiveCell.samples) && effectiveCell.samples.length === 0) {
+                // Cell is validly processed but represents an empty distribution (e.g., from array())
+                const valueSpan = document.createElement('span');
+                valueSpan.className = 'value'; // Use existing class or create a new one if different styling is needed
+                valueSpan.textContent = ' []'; // Representation for an empty array
+                valueSpan.style.fontStyle = 'italic';
+                contentWrapper.appendChild(valueSpan);
             } else if (!effectiveCell.errorState && effectiveCell.id) {
+                // Fallback for cells that are not constants, don't have full stats, aren't empty arrays, and aren't in error
                 const statusSpan = document.createElement('span');
                 statusSpan.className = 'value'; 
                 statusSpan.textContent = ' (Calculating...)';
