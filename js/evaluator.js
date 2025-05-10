@@ -92,33 +92,38 @@ const Evaluator = (() => {
                 }
 
                 // If the cell itself had a parsing/evaluation error, propagate that.
+                // This is crucial for the reactive chain.
                 if (cell.errorState) {
-                    currentlyEvaluating.delete(cellId);
-                    throw new Error(`Evaluator Error: Dependency cell "${cellId}" has an error: ${cell.errorState}`);
+                    // We don't delete from currentlyEvaluating here, as this path is an error propagation,
+                    // not a successful evaluation completion for this specific identifier.
+                    // The deletion will happen when the original evaluation that led here unwinds.
+                    throw new Error(`Dependency cell "${cellId}" has an error: ${cell.errorState}`);
                 }
                 
                 // A cell's processFormula (which calls this evaluator) should have populated samples/value.
                 // If a cell is in the collection, it's assumed to have been processed.
-                // We rely on the initial pass of processFullDocument to process all cells.
-                // If a cell is updated, its processFormula is called again.
+                // The iterative loop in processFullDocument or reactive updates should handle this.
                 let result;
+                // Check if samples exist and have content, or if it's a scalar value.
                 if (cell.samples && cell.samples.length > 0) {
                     result = [...cell.samples]; // Return a copy of samples
                 } else if (typeof cell.value === 'number') {
                     result = cell.value; // Return scalar value
-                } else {
-                    // This case implies the cell might be valid but resulted in empty samples (e.g. array())
-                    // or hasn't been fully evaluated yet (which shouldn't happen if dependency management is correct later)
-                    // For now, if it's an empty array, it's valid.
-                    if (Array.isArray(cell.samples) && cell.samples.length === 0) {
-                        result = [];
-                    } else {
-                        currentlyEvaluating.delete(cellId);
-                        throw new Error(`Evaluator Error: Cell "${cellId}" has no value or samples, and no error state.`);
-                    }
+                } else if (Array.isArray(cell.samples) && cell.samples.length === 0) { 
+                    // Handles explicitly empty arrays, e.g., from array()
+                    result = [];
+                }
+                else {
+                    // This state implies the cell hasn't been successfully evaluated yet,
+                    // or it's part of an unresolvable cycle not caught by the simple check,
+                    // or its evaluation resulted in no value/samples without an error.
+                    // This should ideally be caught by the iterative processing or a more robust graph traversal.
+                    // For now, if it's truly unevaluated, this is an issue.
+                    currentlyEvaluating.delete(cellId); // Clean up before throwing
+                    throw new Error(`Evaluator Error: Cell "${cellId}" is not yet evaluated or has an inconsistent state.`);
                 }
                 
-                currentlyEvaluating.delete(cellId);
+                currentlyEvaluating.delete(cellId); // Successful evaluation of this identifier
                 return result;
 
             case 'BinaryOp':

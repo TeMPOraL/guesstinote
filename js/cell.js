@@ -16,9 +16,10 @@ class Cell {
         this.ci = { lower: null, upper: null }; // 90% CI
         this.histogramData = [];  // For rendering histogram
         
-        this.dependencies = [];   // Cell IDs this cell depends on (for complex formulas)
-        this.dependents = [];     // Cell IDs that depend on this cell
+        this.dependencies = new Set();   // Cell IDs this cell depends on
+        this.dependents = new Set();     // Cell IDs that depend on this cell
         this.errorState = null;   // null, 'error', 'dependent-error'
+        this.ast = null;          // Store the AST
 
         this.processFormula();
     }
@@ -33,21 +34,86 @@ class Cell {
         this.ci = { lower: null, upper: null };
         this.histogramData = [];
         this.errorState = null;
-        this.dependencies = [];
+        // this.dependencies will be reset by processFormula
+        // this.dependents should persist unless managed explicitly elsewhere
         this.processFormula();
     }
 
+    _extractDependencies(astNode) {
+        const dependencies = new Set();
+        if (!astNode) return dependencies;
+
+        function traverse(node) {
+            if (!node) return;
+            if (node.type === 'CellIdentifier') {
+                dependencies.add(node.name);
+            }
+            // Recursively traverse children
+            if (node.left) traverse(node.left);
+            if (node.right) traverse(node.right);
+            if (node.operand) traverse(node.operand);
+            if (node.args && Array.isArray(node.args)) {
+                node.args.forEach(arg => traverse(arg));
+            }
+        }
+        traverse(astNode);
+        return dependencies;
+    }
+    
+    _updateDependencyLinks(newDependencies, cellsCollection) {
+        const oldDependencies = this.dependencies;
+
+        // Remove this cell from dependents list of old dependencies no longer used
+        oldDependencies.forEach(depId => {
+            if (!newDependencies.has(depId)) {
+                const depCell = cellsCollection[depId];
+                if (depCell) {
+                    depCell.dependents.delete(this.id);
+                }
+            }
+        });
+
+        // Add this cell to dependents list of new dependencies
+        newDependencies.forEach(depId => {
+            if (!oldDependencies.has(depId)) {
+                const depCell = cellsCollection[depId];
+                if (depCell) {
+                    depCell.dependents.add(this.id);
+                } else {
+                    // This case implies a dependency on a non-existent cell.
+                    // The evaluator will catch this, but good to be aware.
+                    console.warn(`Cell ${this.id} lists dependency on non-existent cell ${depId}`);
+                }
+            }
+        });
+        this.dependencies = newDependencies;
+    }
+
+    _triggerDependentsUpdate(cellsCollection) {
+        // Create a copy of dependents to iterate over, as the set might be modified
+        // by recursive calls if there are complex update chains (though direct recursion is a cycle).
+        const dependentsToUpdate = new Set(this.dependents);
+        dependentsToUpdate.forEach(dependentId => {
+            const dependentCell = cellsCollection[dependentId];
+            if (dependentCell) {
+                console.log(`Cell ${this.id} triggering update for dependent: ${dependentId}`);
+                dependentCell.processFormula(); // This will in turn call its own evaluator and trigger its dependents
+            }
+        });
+    }
+
+
     processFormula() {
         this.errorState = null;
-        this.ast = null; // Abstract Syntax Tree
-        this.type = null; // Reset type, will be determined by AST evaluation later
+        // this.ast = null; // AST is parsed below
+        this.type = null; 
         this.parameters = {};
         this.value = null;
         this.samples = [];
         this.mean = null;
         this.ci = { lower: null, upper: null };
         this.histogramData = [];
-        this.dependencies = [];
+        // Dependencies are calculated below
 
         const formula = this.rawFormula.trim();
 
@@ -101,16 +167,22 @@ class Cell {
             // TODO: Determine cell type ('pert', 'normal', 'dataArray', 'formula') more specifically
             // based on the AST root or evaluation path if needed for rendering or other logic.
             // For now, 'constant' or 'distribution' based on result type is a start.
+            
+            // After successful evaluation, trigger updates for dependent cells
+            // This should only happen if the value or error state actually changed,
+            // but for simplicity now, we trigger if no error.
+            // A more refined check would compare old vs new values/samples.
+            this._triggerDependentsUpdate(window.Guesstinote.getCellsCollection());
+
 
         } catch (e) {
             this.errorState = e.message; // Capture errors from parser or evaluator
-            console.error(`Cell ${this.id} Error during formula processing:`, e);
+            console.error(`Cell ${this.id} Error during formula processing:`, e.message, e.stack);
+            // If this cell errors out, its dependents might also need to be marked
+            // (e.g. 'dependent-error'). For now, they will try to evaluate and likely
+            // get an error when trying to access this cell's value.
         }
     }
-
-    // _handleFunctionCall, _parseAsConstant, _parseAsNormal, _handlePert, _handleArray,
-    // Cell.AST_HANDLERS, and Cell.FUNCTION_IMPLEMENTATIONS are removed as the new
-    // Evaluator module and the direct AST processing in processFormula supersede them.
 }
 
 window.Cell = Cell; // Make Cell class globally available for now

@@ -113,6 +113,82 @@ document.addEventListener('DOMContentLoaded', () => {
             // This is acceptable for initial load.
             window.Guesstinote.setEditorContent(tempDiv.innerHTML);
         }
+        
+        // Iterative recalculation to handle dependencies
+        // This is a simple approach. A more sophisticated one would use a dirty flag or topological sort.
+        const maxIterations = Object.keys(CellsCollection).length + 5; // Heuristic for iterations
+        console.log(`Starting iterative recalculation, max iterations: ${maxIterations}`);
+        for (let i = 0; i < maxIterations; i++) {
+            let changedInIteration = false;
+            for (const cellId in CellsCollection) {
+                const cell = CellsCollection[cellId];
+                const oldError = cell.errorState;
+                // Storing a checksum/hash of samples would be better than stringifying for change detection
+                const oldValueSignature = cell.mean + (cell.value || '') + (cell.samples ? cell.samples.length : ''); 
+
+                cell.processFormula(); // Re-process (evaluates and triggers dependents)
+
+                const newValueSignature = cell.mean + (cell.value || '') + (cell.samples ? cell.samples.length : '');
+                if (cell.errorState !== oldError || newValueSignature !== oldValueSignature) {
+                    changedInIteration = true;
+                }
+            }
+            if (!changedInIteration && i > 0) { // Ensure at least one full pass after initial
+                console.log(`Recalculation converged after ${i + 1} iterations.`);
+                break;
+            }
+            if (i === maxIterations - 1) {
+                console.warn("Recalculation reached max iterations. Possible complex dependency or instability.");
+            }
+        }
+        
+        // Final render pass after all calculations have settled
+        // This is needed because cell.processFormula() might trigger updates,
+        // but the DOM for the *current* cell being processed in the loop above
+        // isn't updated until its turn. This ensures all DOM elements reflect final state.
+        // This is inefficient and will be improved with targeted rendering.
+        console.log("Performing final render pass after iterative calculations.");
+        const finalEditorContent = document.createElement('div');
+        finalEditorContent.innerHTML = window.Guesstinote.getEditorContent(); // Get current state which might have raw text
+        
+        const finalWalk = document.createTreeWalker(finalEditorContent, NodeFilter.SHOW_TEXT, null, false);
+        let finalNode;
+        const finalTextNodes = [];
+        while(finalNode = finalWalk.nextNode()) {
+            finalTextNodes.push(finalNode);
+        }
+        let finalRenderModified = false;
+        for (let i = finalTextNodes.length - 1; i >= 0; i--) {
+            const textNode = finalTextNodes[i];
+            if (textNode.parentNode && textNode.parentNode.closest('.guesstimate-cell')) continue;
+
+            const textContent = textNode.textContent;
+            Parser.cellDefinitionRegex.lastIndex = 0;
+            let match;
+            const cellMatchesInNode = [];
+            while((match = Parser.cellDefinitionRegex.exec(textContent)) !== null) cellMatchesInNode.push(match);
+
+            for (let j = cellMatchesInNode.length - 1; j >= 0; j--) {
+                const currentMatch = cellMatchesInNode[j];
+                const rawText = currentMatch[0];
+                const idPart = currentMatch[1];
+                const namePart = currentMatch[2];
+                // formulaPart is not needed here as cell already exists and has its formula
+
+                const cellId = idPart ? idPart.trim() : namePart.trim();
+                const cell = CellsCollection[cellId];
+                if (cell) { // Only render if cell exists in collection
+                    const cellSpan = Renderer.renderCell(cell);
+                    _replaceTextRangeWithNode(textNode, currentMatch.index, rawText.length, cellSpan);
+                    finalRenderModified = true;
+                }
+            }
+        }
+        if (finalRenderModified) {
+             window.Guesstinote.setEditorContent(finalEditorContent.innerHTML);
+        }
+
+
         console.log("Full document processing complete. CellsCollection:", CellsCollection);
     }
 
