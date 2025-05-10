@@ -83,7 +83,7 @@ This section outlines the core files of the Guesstinote project, reflecting the 
 *   `js/math/DistributionGenerator.js`: Generates sample arrays for statistical distributions.
 *   `js/math/DistributionMath.js`: Performs arithmetic operations on sample arrays and scalars.
 *   `js/math/StatisticsCalculator.js`: Calculates basic statistics (mean, CI) from sample arrays.
-*   `js/calculation/CalculationManager.js`: Manages the calculation lifecycle and runs the iterative processing loop for cells.
+*   `js/calculation/CalculationManager.js`: Manages the calculation lifecycle, runs the iterative processing loop for cells, handles pruning of cells, and maintains the global dependency graph to trigger recalculations.
 *   `js/ui/CellRenderer.js`: Generates HTML for `<g-cell>`/`<g-ref>` elements.
 *   `js/ui/HistogramRenderer.js`: Calculates histogram bin data and generates HTML for histogram display.
 *   `js/elements/GCellElement.js`: Defines the `<g-cell>` custom element (no Shadow DOM).

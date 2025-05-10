@@ -45,7 +45,7 @@ typically within subdirectories reflecting their primary domain.
 
 ### 5.  Reactivity & Calculation Management:
     *   `js/calculation/CalculationManager.js`: (New module) `[x]`
-        *   Responsibilities: Manages the overall calculation lifecycle. Runs the iterative processing loop for all cells. Orchestrates calls to `Cell.processFormula()`. Handles pruning of cells. Manages updates to the dependency graph (primarily by facilitating the environment where `Cell.js` updates its own dependencies/dependents during `processFormula`). Triggers recalculation of dependent cells (indirectly, by `Cell.js` during its processing).
+        *   Responsibilities: Manages the overall calculation lifecycle. Runs the iterative processing loop for all cells. Orchestrates calls to `Cell.processFormula()`. Handles pruning of cells. Builds and maintains the global dependency graph (which cells depend on which, and vice-versa) based on information from `Cell` instances. If a cell's output changes, `CalculationManager` uses this graph to identify and mark its direct dependents for re-evaluation.
         *   Why: Centralizes the complex logic of reactive updates and the calculation flow across all cells.
 
 ### 6.  Rendering & UI Components:
